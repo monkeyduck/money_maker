@@ -89,7 +89,7 @@ def timestamp2string(timeStamp):
         # 2015-08-28 16:43:37.283000'
         return str1
     except Exception as e:
-        print (e)
+        print(e)
         return ''
 
 
@@ -103,6 +103,8 @@ buy_price = 0
 last_last_price = 0
 incr_rate = 0.004
 decr_rate = 0.004
+avg_1m_price = 0
+avg_5m_price = 0
 
 
 def connect():
@@ -112,117 +114,122 @@ def connect():
     ws.connect(ws_address, http_proxy_host="websocket", http_proxy_port=ws_port)
 
 
+def gen_file_name():
+    file_path = os.getcwd()
+    transaction = file_path + '/eos_transaction.txt'
+    deal = file_path + '/eos_deals.txt'
+    return transaction, deal
+
+
 def on_message(ws, message):
-    try:
-        if 'pong' in message or 'addChannel' in message:
-            return
-        global latest_price, last_avg_price, buy_price, last_last_price, more, less, deque_3s, deque_10s, deque_min
-        jmessage = json.loads(message)
-        ts = time.time()
-        file_path = os.getcwd()
-        file_transaction = file_path + '/transaction.txt'
-        file_deal = file_path + '/deals.txt'
+    if 'pong' in message or 'addChannel' in message:
+        return
+    global latest_price, last_avg_price, buy_price, last_last_price, more, less, deque_3s, deque_10s, deque_min, avg_1m_price
+    jmessage = json.loads(message)
+    ts = time.time()
+    file_transaction, file_deal = gen_file_name()
 
-        while len(deque_3s) > 0:
-            left = deque_3s.popleft()
-            if float(left.time + 3) > float(ts):
-                deque_3s.appendleft(left)
-                break
-            ind_3s.minus_vol(left)
-            ind_3s.minus_price(left)
+    while len(deque_3s) > 0:
+        left = deque_3s.popleft()
+        if float(left.time + 3) > float(ts):
+            deque_3s.appendleft(left)
+            break
+        ind_3s.minus_vol(left)
+        ind_3s.minus_price(left)
 
-        while len(deque_10s) > 0:
-            left = deque_10s.popleft()
-            if float(left.time + 10) > float(ts):
-                deque_10s.appendleft(left)
-                break
-            ind_10s.minus_vol(left)
-            ind_10s.minus_price(left)
+    while len(deque_10s) > 0:
+        left = deque_10s.popleft()
+        if float(left.time + 10) > float(ts):
+            deque_10s.appendleft(left)
+            break
+        ind_10s.minus_vol(left)
+        ind_10s.minus_price(left)
 
-        while len(deque_min) > 0:
-            left = deque_min.popleft()
-            if float(left.time + 60) > float(ts):
-                deque_min.appendleft(left)
-                break
-            ind_1min.minus_price(left)
-            ind_1min.minus_vol(left)
+    while len(deque_min) > 0:
+        left = deque_min.popleft()
+        if float(left.time + 60) > float(ts):
+            deque_min.appendleft(left)
+            break
+        ind_1min.minus_price(left)
+        ind_1min.minus_vol(left)
 
-        jdata = jmessage[0]['data'][0]
-        latest_price = float(jdata[1])
-        deal_entity = dealEntity(jdata[0], float(jdata[1]), round(float(jdata[2]), 2), ts, jdata[4])
+    jdata = jmessage[0]['data'][0]
+    latest_price = float(jdata[1])
+    deal_entity = dealEntity(jdata[0], float(jdata[1]), round(float(jdata[2]),3), ts, jdata[4])
 
-        deque_min.append(deal_entity)
-        deque_10s.append(deal_entity)
-        deque_3s.append(deal_entity)
+    deque_min.append(deal_entity)
+    deque_10s.append(deal_entity)
+    deque_3s.append(deal_entity)
 
-        ind_3s.add_price(deal_entity)
-        ind_3s.add_vol(deal_entity)
+    ind_3s.add_price(deal_entity)
+    ind_3s.add_vol(deal_entity)
 
-        ind_10s.add_vol(deal_entity)
-        ind_10s.add_price(deal_entity)
+    ind_10s.add_vol(deal_entity)
+    ind_10s.add_price(deal_entity)
 
-        ind_1min.add_vol(deal_entity)
-        ind_1min.add_price(deal_entity)
+    ind_1min.add_vol(deal_entity)
+    ind_1min.add_price(deal_entity)
 
-        avg_3s_price = ind_3s.cal_avg_price()
-        avg_10s_price = ind_10s.cal_avg_price()
-        avg_min_price = ind_1min.cal_avg_price()
+    avg_3s_price = ind_3s.cal_avg_price()
+    avg_10s_price = ind_10s.cal_avg_price()
+    avg_min_price = ind_1min.cal_avg_price()
 
-        if more == 1:
-            if avg_10s_price <= avg_min_price:
-                # 按买一价出售
-                if sell_more():
-                    sell_price = get_latest_price_this_week('buy')
-                    info = u'发出卖出信号！！！卖出价格：' + str(sell_price) + u', 收益: ' + str(sell_price - buy_price)
-                    print (info)
-                    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                        f.writelines(info + '\n')
-                    more = 0
-        elif less == 1:
-            if avg_10s_price >= avg_min_price:
-                if sell_less():
-                    sell_price = get_latest_price_this_week('buy')
-                    info = u'发出卖出信号！！！卖出价格：' + str(sell_price) + u', 收益: ' + str(buy_price - sell_price)
-                    print (info)
-                    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                        f.writelines(info + '\n')
-                    less = 0
-        elif check_vol():
-            if latest_price > avg_3s_price > avg_10s_price > last_avg_price > last_last_price and avg_3s_price > float((1 + incr_rate) * avg_min_price) \
-                    and ind_1min.bid_vol > float(2 * ind_1min.ask_vol):
-                if buyin_more():
-                    more = 1
-                    buy_price = get_latest_price_this_week('sell')
-                    info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + timestamp2string(ts)
-                    print (info)
-                    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                        f.writelines(info + '\n')
+    if more == 1:
+        if avg_10s_price <= avg_min_price:
+            # 按买一价出售
+            if sell_more():
+                sell_price = get_latest_price_this_week('buy')
+                info = u'发出卖出信号！！！卖出价格：' + str(sell_price) + u', 收益: ' + str(sell_price - buy_price)
+                print (info)
+                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                    f.writelines(info + '\n')
+                more = 0
+    elif less == 1:
+        if avg_10s_price >= avg_min_price:
+            if sell_less():
+                sell_price = get_latest_price_this_week('buy')
+                info = u'发出卖出信号！！！卖出价格：' + str(sell_price) + u', 收益: ' + str(buy_price - sell_price)
+                print (info)
+                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                    f.writelines(info + '\n')
+                less = 0
+    elif check_vol():
+        if latest_price > avg_3s_price > avg_10s_price > last_avg_price > last_last_price and avg_3s_price > float((1 + incr_rate) * avg_min_price) \
+                and ind_1min.bid_vol > float(2 * ind_1min.ask_vol):
+            if buyin_more():
+                more = 1
+                buy_price = get_latest_price_this_week('sell')
+                info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + timestamp2string(ts)
+                print (info)
+                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                    f.writelines(info + '\n')
 
-            elif latest_price < avg_3s_price < avg_10s_price < last_avg_price < last_last_price and avg_3s_price < float((1 - decr_rate) * avg_min_price) \
-                    and ind_1min.ask_vol > float(2 * ind_1min.bid_vol):
-                if buyin_less():
-                    buy_price = get_latest_price_this_week('sell')
-                    info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + timestamp2string(ts)
-                    print (info)
-                    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                        f.writelines(info + '\n')
-                    less = 1
-        if last_avg_price != avg_10s_price:
-            last_last_price = last_avg_price
-            last_avg_price = avg_10s_price
+        elif latest_price < avg_3s_price < avg_10s_price < last_avg_price < last_last_price and avg_3s_price < float((1 - decr_rate) * avg_min_price) \
+                and ind_1min.ask_vol > float(2 * ind_1min.bid_vol):
+            if buyin_less():
+                buy_price = get_latest_price_this_week('sell')
+                info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + timestamp2string(ts)
+                print (info)
+                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                    f.writelines(info + '\n')
+                less = 1
+    if last_avg_price != avg_10s_price:
+        last_last_price = last_avg_price
+        last_avg_price = avg_10s_price
 
-        price_info = deal_entity.type + u' now_price: %s, 3s_price: %s, 10s_price: %s, 1m_price: %s' % (latest_price, str(ind_3s.cal_avg_price()), str(ind_10s.cal_avg_price()), str(avg_min_price))
-        vol_info = u'cur_vol: %s, 3s vol: %s, 10s vol: %s, 1min vol: %s, ask_vol: %s, bid_vol: %s' % (str(deal_entity.amount), str(ind_3s.vol), str(ind_10s.vol), str(ind_1min.vol), str(ind_1min.ask_vol), str(ind_1min.bid_vol))
-        with codecs.open(file_deal, 'a+', 'UTF-8') as f:
-            f.writelines(price_info + u', ' + vol_info + u', ' + timestamp2string(ts) + '\r\n')
+    price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
+                                    u'avg_1min_price: %.4f, avg_5min_price: %.4f' \
+                 % (latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_1m_price, avg_5m_price)
+    vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f' \
+               % (deal_entity.amount, ind_3s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol)
+    with codecs.open(file_deal, 'a+', 'UTF-8') as f:
+        f.writelines(price_info + u', ' + vol_info + u', ' + timestamp2string(ts) + '\r\n')
 
-        # print 'now_price: %s' % latest_price + ', 10_avg_price: ' + str(ind_10s.cal_avg_price()) + ', 1min_avg_price: '
-        # + str(avg_min_price)
-        #  print 'cur_vol: ' + str(deal_entity.amount) + ', 10s vol: ' + str(ind_10s.vol) + ', 1min vol: '
-        # + str(ind_1min.vol)
-        print(price_info + '\r\n' + vol_info + u', ' + timestamp2string(ts))
-    except Exception as e:
-        print(e.message)
+    # print 'now_price: %s' % latest_price + ', 10_avg_price: ' + str(ind_10s.cal_avg_price()) + ', 1min_avg_price: '
+    # + str(avg_min_price)
+    #  print 'cur_vol: ' + str(deal_entity.amount) + ', 10s vol: ' + str(ind_10s.vol) + ', 1min vol: '
+    # + str(ind_1min.vol)
+    print(price_info + '\r\n' + vol_info + u', ' + timestamp2string(ts))
 
 
 def check_vol():
@@ -245,14 +252,34 @@ def on_open(ws):
     def run(*args):
         ws.send("{'event':'addChannel','channel':'ok_sub_spot_eos_usdt_deals'}")
         print("thread starting...")
-        # while 1:
-        #     time.sleep(20)
-        #     ws.send("{'event':'ping'}")
+
     thread.start_new_thread(run, ())
+
+
+def kline_price():
+    global avg_5m_price, avg_1m_price
+    deque_1m = deque()
+    deque_5m = deque()
+    price_sum = 0
+    price_sum_1m = 0
+    while 1:
+        new_price = float(okSpot.ticker("eos_usdt")['ticker']['last'])
+        if len(deque_5m) >= 300:
+            price_sum -= deque_5m.popleft()
+        if len(deque_1m) >= 60:
+            price_sum_1m -= deque_1m.popleft()
+        deque_1m.append(new_price)
+        deque_5m.append(new_price)
+        price_sum += new_price
+        price_sum_1m += new_price
+        avg_1m_price = round(price_sum_1m / len(deque_1m), 4)
+        avg_5m_price = round(price_sum / len(deque_5m), 4)
+        time.sleep(1)
 
 
 if __name__ == "__main__":
     # websocket.enableTrace(True)
+    thread.start_new_thread(kline_price, ())
     ws = websocket.WebSocketApp("wss://real.okex.com:10441/websocket",
                                 on_message=on_message,
                                 on_error=on_error,

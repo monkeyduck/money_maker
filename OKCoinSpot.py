@@ -29,6 +29,17 @@ class OKCoinSpot:
 
         # 获取OKCOIN现货历史交易信息
 
+    # 获取现货k线信息
+    def kline(self, symbol='', type='1min'):
+        KLINE_RESOURCE = "/api/v1/kline.do"
+        params = ''
+        if symbol:
+            params += '&symbol=' + symbol if params else 'symbol=' + symbol
+        if type:
+            params += '&type=' + type if params else 'type=' + symbol
+        return httpGet(self.__url, KLINE_RESOURCE, params)
+
+
     def trades(self, symbol=''):
         TRADES_RESOURCE = "/api/v1/trades.do"
         params = ''

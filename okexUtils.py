@@ -20,7 +20,6 @@ def httpGet(url,resource,params=''):
     conn.request("GET",resource + '?' + params)
     response = conn.getresponse()
     data = response.read().decode('utf-8')
-    print('data:', data)
     return json.loads(data)
 
 
