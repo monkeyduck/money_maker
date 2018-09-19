@@ -154,9 +154,10 @@ def check_incr_rate(line):
     segs = line.split(',')
     if len(segs) > 10:
         price_3s = float(segs[1].split(':')[1])
+        price_10s= float(segs[2].split(':')[1])
         price_1m = float(segs[3].split(':')[1])
         price_5m = float(segs[4].split(':')[1])
-        if price_3s > price_5m * 1.008:
+        if price_3s > price_1m * 1.003 and price_3s > price_10s * 1.001:
             return True
 
 
@@ -164,9 +165,10 @@ def check_decr_rate(line):
     segs = line.split(',')
     if len(segs) > 10:
         price_3s = float(segs[1].split(':')[1])
+        price_10s= float(segs[2].split(':')[1])
         price_1m = float(segs[3].split(':')[1])
         price_5m = float(segs[4].split(':')[1])
-        if price_3s < price_5m * 0.992:
+        if price_3s < price_1m * 0.997 and price_3s < price_10s * 0.999:
             return True
 
 
@@ -181,28 +183,26 @@ def query_24h_vol():
     print(avg_vol)
 
 if __name__=='__main__':
-    query_24h_vol()
-    # path = '/Users/linchuanli/PycharmProjects/moneymaker'
-    # lines = read_file(path + '/eos_deals_20180912.txt')
-    # last_time = ''
-    # last_line = ''
-    # for line in lines:
-        # if last_line != '':
-        #     last_time = extract_time(last_line)
-        #     this_time = extract_time(line)
-        #     # print(time.mktime(time.strptime(last_time,'%Y-%m-%d %H:%M:%S')))
-        #     if time.mktime(time.strptime(this_time,'%Y-%m-%d %H:%M:%S')) - time.mktime(time.strptime(last_time, '%Y-%m-%d %H:%M:%S')) > 10:
-        #         print(last_line)
-        #         print(line + '\n')
-        # last_line = line
+    # query_24h_vol()
+    path = '/Users/linchuanli/PycharmProjects/moneymaker'
+    lines = read_file(path + '/etc_deals_20180919.txt')
+    last_time = ''
+    last_line = ''
+    for line in lines:
+    #     if last_line != '':
+    #         last_time = extract_time(last_line)
+    #         this_time = extract_time(line)
+    #         # print(time.mktime(time.strptime(last_time,'%Y-%m-%d %H:%M:%S')))
+    #         if time.mktime(time.strptime(this_time,'%Y-%m-%d %H:%M:%S')) - time.mktime(time.strptime(last_time, '%Y-%m-%d %H:%M:%S')) > 10:
+    #             print(last_line)
+    #             print(line + '\n')
+    #     last_line = line
 
-        # if check_1min_vol(line, 80000):
-            # if check_ask_bid(line):
-        # if check_incr_rate(line) or check_decr_rate(line):
-        #     # print(line)
-        #     stime = extract_time(line)
-        #     if stime != last_time:
-        #         print(line)
-        #         last_time = stime
-        # check_buy_sell(line)
-        # check_ask_bid(line)
+        if check_1min_vol(line, 16000):
+            if check_incr_rate(line) or check_decr_rate(line):
+                # if check_ask_bid(line):
+                # print(line)
+                    stime = extract_time(line)
+                    if stime != last_time:
+                        print(line)
+                        last_time = stime

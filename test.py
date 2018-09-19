@@ -49,12 +49,9 @@ def get_hold_info():
 
 
 def query_24h_vol():
-    while 1:
-        avg_vol = float(okSpot.ticker("eos_usdt")['ticker']['vol']) / 24 / 60
-        print('1min avg_vol: %.3f' % avg_vol)
-        time.sleep(60)
+    avg_vol = float(okSpot.ticker("etc_usdt")['ticker']['vol']) / 24 / 60
+    print('1min avg_vol: %.3f' % avg_vol)
 
 
 if __name__ == '__main__':
-    thread.start_new_thread(send_email, ("买入eos成功",))
-    time.sleep(10)
+    query_24h_vol()

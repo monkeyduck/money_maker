@@ -63,7 +63,7 @@ def buyin_more(coin_name, time_type, latest_price, lever_rate=20):
         ret = okFuture.future_trade(coin_name + "_usd", time_type, None, amount, 1, 1, lever_rate)
         print(ret)
         if 'true' in ret:
-            email_msg = "做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
+            email_msg = "做多%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
                         % (coin_name, latest_price, amount, timestamp2string(time.time()), ret)
             thread.start_new_thread(send_email, (email_msg,))
             return True
@@ -79,7 +79,7 @@ def buyin_more_batch(coin_name, time_type, latest_price, lever_rate=20, amount=N
         order_data = gen_orders_data(latest_price, amount, 1, 5)
         ret = okFuture.future_batchTrade(coin_name+"_usd", time_type, order_data, lever_rate)
         if 'true' in ret:
-            email_msg = "做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
+            email_msg = "批量下单做多%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
                         % (coin_name, latest_price, amount, timestamp2string(time.time()), ret)
             thread.start_new_thread(send_email, (email_msg,))
             return True
@@ -112,7 +112,7 @@ def buyin_less_batch(coin_name, time_type, latest_price, lever_rate=20, amount=N
         order_data = gen_orders_data(latest_price, amount, 2, 5)
         ret = okFuture.future_batchTrade(coin_name+"_usd", time_type, order_data, lever_rate)
         if 'true' in ret:
-            email_msg = "做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
+            email_msg = "批量下单做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
                         % (coin_name, latest_price, amount, timestamp2string(time.time()), ret)
             thread.start_new_thread(send_email, (email_msg,))
             print(ret)
@@ -131,6 +131,14 @@ def cancel_uncompleted_order(coin_name, time_type):
         order_id = ",".join(order_id_list)
         ret = okFuture.future_cancel(coin_name+"_usd", time_type, order_id)
         print(ret)
+        if 'true' in ret:
+            email_msg = "撤单%s成功, 时间: %s, 成交结果: %s" \
+                        % (coin_name, timestamp2string(time.time()), ret)
+            thread.start_new_thread(send_email, (email_msg,))
+            return True
+        else:
+            return False
+    return True
 
 
 def sell_more(coin_name, time_type, leverRate = 20):
@@ -146,7 +154,7 @@ def sell_more(coin_name, time_type, leverRate = 20):
                         % (coin_name, timestamp2string(time.time()), ret)
             thread.start_new_thread(send_email, (email_msg,))
             return True
-    return False
+    return cancel_uncompleted_order(coin_name, time_type)
 
 
 def sell_less(coin_name, time_type, leverRate = 20):
@@ -158,11 +166,11 @@ def sell_less(coin_name, time_type, leverRate = 20):
         ret = okFuture.future_trade(coin_name+"_usd", time_type, '', sell_available, 4, 1, leverRate)
         print(ret)
         if 'true' in ret:
-            email_msg = "卖出做多%s成功, 时间: %s, 成交结果: %s" \
+            email_msg = "卖出做空%s成功, 时间: %s, 成交结果: %s" \
                         % (coin_name, timestamp2string(time.time()), ret)
             thread.start_new_thread(send_email, (email_msg,))
             return True
-    return False
+    return cancel_uncompleted_order(coin_name, time_type)
 
 
 def send_email(message):
@@ -201,13 +209,16 @@ if __name__ == '__main__':
     # sell_less("etc", "quarter")
     # time.sleep(10)
     # gen_orders_data(5.1, 5, 2, 5)
-    buyin_more_batch("eos", "quarter", 5, 20, 5)
+    # buyin_more_batch("eos", "quarter", 5, 20, 5)
     # buyin_less_batch("etc", "quarter", 10, 20, 5)
-    time.sleep(10)
+    #
+    ret = okFuture.future_orderinfo("eos"+"_usd", "this_week", -1, 1, None, None)
+    print (ret)
+    # time.sleep(10)
     # sell_less("etc", "quarter")
     # check_order_status("etc", "quarter", 1)
-    sell_more("eos", "quarter")
-    time.sleep(10)
+    # sell_more("eos", "quarter")
+    # time.sleep(10)
     # jRet = json.loads(okFuture.future_userinfo_4fix())
     # print(jRet)
     # print(jRet["info"]["etc"])
