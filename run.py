@@ -7,7 +7,7 @@ except ImportError:
     import _thread as thread
 from realtime import Coin,websocket,deque,indicator,dealEntity,time,codecs,traceback,cal_rate
 from time_utils import timestamp2string
-from trade import sell_more, sell_less, buyin_less_batch, buyin_more_batch, json
+from trade import sell_more, sell_less, buyin_less_batch, buyin_more_batch, json, ensure_buyin_less, ensure_buyin_more
 
 # 默认币种
 coin = Coin("etc", "usdt")
@@ -79,21 +79,19 @@ def on_message(ws, message):
     price_5m_change = cal_rate(avg_3s_price, avg_5m_price)
 
     if more == 1:
-        if avg_10s_price <= 1.003 * avg_5m_price or (ind_3s.vol > 2000 and ind_3s.ask_vol > 4 * ind_3s.bid_vol):
+        if avg_10s_price <= 1.001 * avg_5m_price:
             # 按买一价出售
             if sell_more(coin.name, time_type):
                 info = u'发出卖出信号！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(latest_price - buy_price) \
                        + ', ' + now_time
-                print (info)
                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                     f.writelines(info + '\n')
                 more = 0
     elif less == 1:
-        if avg_10s_price >= 0.997 * avg_5m_price:
+        if avg_10s_price >= 0.999 * avg_5m_price:
             if sell_less(coin.name, time_type):
                 info = u'发出卖出信号！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(buy_price - latest_price) \
                        + ', ' + now_time
-                print (info)
                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                     f.writelines(info + '\n')
                 less = 0
@@ -103,9 +101,9 @@ def on_message(ws, message):
                 and ind_1min.bid_vol > float(2 * ind_1min.ask_vol) and ind_3s.bid_vol > float(2 * ind_3s.ask_vol):
             if buyin_more_batch(coin.name, time_type, latest_price):
                 more = 1
+                thread.start_new_thread(ensure_buyin_more, (coin.name, time_type, latest_price,))
                 buy_price = latest_price
                 info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                print (info)
                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                     f.writelines(info + '\n')
 
@@ -113,12 +111,13 @@ def on_message(ws, message):
                 and price_5m_change <= -1 * incr_5m_rate and price_1m_change <= -1 * incr_1m_rate and price_10s_change <= -0.1 \
                 and ind_1min.ask_vol > float(2 * ind_1min.bid_vol) and ind_3s.ask_vol > float(2 * ind_3s.bid_vol):
             if buyin_less_batch(coin.name, time_type, latest_price):
+                less = 1
+                thread.start_new_thread(ensure_buyin_less, (coin.name, time_type, latest_price,))
                 buy_price = latest_price
                 info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                print (info)
                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                     f.writelines(info + '\n')
-                less = 1
+
     if last_avg_price != avg_10s_price:
         last_last_price = last_avg_price
         last_avg_price = avg_10s_price

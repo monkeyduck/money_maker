@@ -87,6 +87,28 @@ def buyin_more_batch(coin_name, time_type, latest_price, lever_rate=20, amount=N
     return False
 
 
+def ensure_buyin_more(coin_name, time_type, price):
+    retry = 3
+    while retry > 0:
+        time.sleep(1)
+        retry -= 1
+        if cancel_uncompleted_order(coin_name, time_type):
+            buyin_more_batch(coin_name, time_type, price, 20)
+        else:
+            break
+
+
+def ensure_buyin_less(coin_name, time_type, price):
+    retry = 3
+    while retry > 0:
+        time.sleep(1)
+        retry -= 1
+        if cancel_uncompleted_order(coin_name, time_type):
+            buyin_less_batch(coin_name, time_type, price, 20)
+        else:
+            break
+
+
 def buyin_less(coin_name, time_type, latest_price, lever_rate=20):
     json_ret = json.loads(okFuture.future_userinfo_4fix())
     balance = float(json_ret["info"][coin_name]["balance"])
@@ -137,8 +159,11 @@ def cancel_uncompleted_order(coin_name, time_type):
             thread.start_new_thread(send_email, (email_msg,))
             return True
         else:
-            return False
-    return True
+            email_msg = "撤单%s失败, 时间: %s, 失败详情: %s" \
+                        % (coin_name, timestamp2string(time.time()), ret)
+            thread.start_new_thread(send_email, (email_msg,))
+            return cancel_uncompleted_order(coin_name, time_type)
+    return False
 
 
 def sell_more(coin_name, time_type, leverRate = 20):
@@ -154,7 +179,7 @@ def sell_more(coin_name, time_type, leverRate = 20):
                         % (coin_name, timestamp2string(time.time()), ret)
             thread.start_new_thread(send_email, (email_msg,))
             return True
-    return cancel_uncompleted_order(coin_name, time_type)
+    return True
 
 
 def sell_less(coin_name, time_type, leverRate = 20):
@@ -170,7 +195,7 @@ def sell_less(coin_name, time_type, leverRate = 20):
                         % (coin_name, timestamp2string(time.time()), ret)
             thread.start_new_thread(send_email, (email_msg,))
             return True
-    return cancel_uncompleted_order(coin_name, time_type)
+    return True
 
 
 def send_email(message):
@@ -212,8 +237,8 @@ if __name__ == '__main__':
     # buyin_more_batch("eos", "quarter", 5, 20, 5)
     # buyin_less_batch("etc", "quarter", 10, 20, 5)
     #
-    ret = okFuture.future_orderinfo("eos"+"_usd", "this_week", -1, 1, None, None)
-    print (ret)
+    # ret = okFuture.future_orderinfo("eos"+"_usd", "this_week", -1, 1, None, None)
+    # print (ret)
     # time.sleep(10)
     # sell_less("etc", "quarter")
     # check_order_status("etc", "quarter", 1)
@@ -227,5 +252,8 @@ if __name__ == '__main__':
     # print(buyin_more())
     # jRet = json.loads(okFuture.future_position_4fix("eos_usd", "this_week", "1"))
     # print(jRet)
-
-    # print(okSpot.ticker("eos_usdt")['ticker']['last'])
+    coin_name = "eos"
+    time_type = "this_week"
+    ret = okFuture.future_orderinfo(coin_name+"_usd", time_type, -1, 1, None, None)
+    print(ret)
+    # print(okSpot.ticker("etc_usdt"))

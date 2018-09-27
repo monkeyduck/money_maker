@@ -160,7 +160,7 @@ def on_message(ws, message):
     price_5m_change = cal_rate(avg_3s_price, avg_5m_price)
 
     if more == 1:
-        if avg_10s_price <= 1.003 * avg_5m_price or (ind_3s.vol > avg_min_vol and ind_3s.ask_vol > 3 * ind_3s.bid_vol):
+        if avg_10s_price <= 1.001 * avg_5m_price or (0.3 * ind_3s.ask_vol > ind_3s.bid_vol > 3000):
             # 按买一价出售
             if sell_more(coin.name, time_type):
                 sell_price = latest_price
@@ -171,7 +171,7 @@ def on_message(ws, message):
                     f.writelines(info + '\n')
                 more = 0
     elif less == 1:
-        if avg_10s_price >= 0.997 * avg_5m_price:
+        if avg_10s_price >= 0.999 * avg_5m_price:
             if sell_less(coin.name, time_type):
                 sell_price = latest_price
                 info = u'发出卖出信号！！！卖出价格：' + str(sell_price) + u', 收益: ' + str(buy_price - sell_price) \
@@ -182,8 +182,8 @@ def on_message(ws, message):
                 less = 0
     elif check_vol():
         if latest_price > avg_3s_price > avg_10s_price > last_avg_price > last_last_price > avg_min_price > avg_5m_price \
-                and (price_5m_change > incr_5m_rate and price_1m_change > incr_1m_rate and price_10s_change > 0.1) \
-                and ind_1min.bid_vol > float(2 * ind_1min.ask_vol):
+                and (price_5m_change > incr_5m_rate and price_1m_change > incr_1m_rate and price_10s_change >= 0.05) \
+                and ind_1min.bid_vol > float(1.5 * ind_1min.ask_vol) and ind_3s.bid_vol > float(2 * ind_3s.ask_vol):
             if buyin_more_batch(coin.name, time_type, latest_price):
                 more = 1
                 buy_price = latest_price
@@ -192,8 +192,8 @@ def on_message(ws, message):
                     f.writelines(info + '\n')
 
         elif latest_price < avg_3s_price < avg_10s_price < last_avg_price < last_last_price < avg_min_price < avg_5m_price \
-                and (price_5m_change < -1 * incr_5m_rate and price_1m_change < -1 * incr_1m_rate and price_10s_change < -0.1) \
-                and ind_1min.ask_vol > float(ind_1min.bid_vol) and ind_3s.ask_vol > float(2 * ind_3s.bid_vol):
+                and (price_5m_change < -1 * incr_5m_rate and price_1m_change < -1 * incr_1m_rate and price_10s_change <= -0.05) \
+                and ind_1min.ask_vol > float(1.5 * ind_1min.bid_vol) and ind_3s.ask_vol > float(2 * ind_3s.bid_vol):
             if buyin_less_batch(coin.name, time_type, latest_price):
                 buy_price = latest_price
                 info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
@@ -231,7 +231,7 @@ def query_24h_vol():
 
 
 def check_vol():
-    if ind_1min.vol > 5 * avg_min_vol:
+    if ind_1min.vol > 8 * avg_min_vol and ind_3s.vol > 0.5 * avg_min_vol:
         return True
     else:
         return False
@@ -261,8 +261,8 @@ if __name__ == "__main__":
                                 on_error=on_error,
                                 on_close=on_close)
     ws.on_open = on_open
+    thread.start_new_thread(query_24h_vol, ())
     while True:
-        thread.start_new_thread(query_24h_vol, ())
         ws.run_forever(ping_interval=10, ping_timeout=8)
         print("write left lines into file...")
         with codecs.open(file_deal, 'a+', 'UTF-8') as f:
