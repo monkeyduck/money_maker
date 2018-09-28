@@ -181,8 +181,8 @@ def on_message(ws, message):
                     f.writelines(info + '\n')
                 less = 0
     elif check_vol():
-        if latest_price > avg_3s_price > avg_10s_price > last_avg_price > last_last_price > avg_min_price > avg_5m_price \
-                and (price_5m_change > incr_5m_rate and price_1m_change > incr_1m_rate and price_10s_change >= 0.05) \
+        if latest_price > avg_3s_price >= avg_10s_price > last_avg_price > last_last_price > avg_min_price > avg_5m_price \
+                and (price_5m_change > incr_5m_rate and price_1m_change > incr_1m_rate and price_10s_change >= 0) \
                 and ind_1min.bid_vol > float(1.5 * ind_1min.ask_vol) and ind_3s.bid_vol > float(2 * ind_3s.ask_vol):
             if buyin_more_batch(coin.name, time_type, latest_price):
                 more = 1
@@ -192,7 +192,7 @@ def on_message(ws, message):
                     f.writelines(info + '\n')
 
         elif latest_price < avg_3s_price < avg_10s_price < last_avg_price < last_last_price < avg_min_price < avg_5m_price \
-                and (price_5m_change < -1 * incr_5m_rate and price_1m_change < -1 * incr_1m_rate and price_10s_change <= -0.05) \
+                and (price_5m_change < -1 * incr_5m_rate and price_1m_change < -1 * incr_1m_rate and price_10s_change <= 0) \
                 and ind_1min.ask_vol > float(1.5 * ind_1min.bid_vol) and ind_3s.ask_vol > float(2 * ind_3s.bid_vol):
             if buyin_less_batch(coin.name, time_type, latest_price):
                 buy_price = latest_price
