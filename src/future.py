@@ -149,7 +149,6 @@ class OKCoinFuture:
         return httpPost(self.__url, FUTURE_INFO_4FIX, params)
 
     # 期货逐仓持仓信息
-    # 默认返回10倍杠杆持仓 type=1 返回全部持仓数据
     def future_position_4fix(self, symbol, contractType, type1):
         FUTURE_POSITION_4FIX = "/api/v1/future_position_4fix.do?"
         params = {
@@ -160,19 +159,3 @@ class OKCoinFuture:
         }
         params['sign'] = buildMySign(params, self.__secretkey)
         return httpPost(self.__url, FUTURE_POSITION_4FIX, params)
-
-    # 期货k线
-    def future_kline(self, symbol, contractType, type1, size=None, since=None):
-        FUTURE_KLINE = "/api/v1/future_kline.do"
-        params = ''
-        if symbol:
-            params += '&symbol=' + symbol if params else 'symbol=' + symbol
-        if contractType:
-            params += '&contract_type=' + contractType if params else 'contract_type=' + symbol
-        if type1:
-            params += '&type=' + type1 if params else 'type=' + type1
-        if size:
-            params += '&size=' + str(size) if params else 'size=' + str(size)
-        if since:
-            params += '&since=' + since if since else 'since=' + since
-        return httpGet(self.__url, FUTURE_KLINE, params)

@@ -5,10 +5,8 @@ try:
     import thread
 except ImportError:
     import _thread as thread
-from trade import  buyin_less_batch, buyin_more_batch, json, ensure_buyin_less, \
-    ensure_buyin_more, okFuture, okSpot
+from trade import okFuture, okSpot
 import time
-from run import sell_less_batch, sell_more_batch
 
 import smtplib
 from email.mime.text import MIMEText
@@ -55,21 +53,5 @@ def query_24h_vol():
     print('1min avg_vol: %.3f' % avg_vol)
 
 
-def exe_finished():
-    global finished
-    finished = True
-
-
-def sell():
-    time.sleep(10)
-    exe_finished()
-    print("Finished thread")
-
-
 if __name__ == '__main__':
-    coin_name = "etc"
-    time_type = "quarter"
-    thread.start_new_thread(sell_less_batch, (coin_name, time_type, 10,))
-    while True:
-        print("start to sell")
-        time.sleep(1)
+    query_24h_vol()

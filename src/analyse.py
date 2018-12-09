@@ -6,7 +6,6 @@ import json
 import datetime
 import time
 from trade import okSpot
-from utils import timestamp2string
 
 
 class ticker:
@@ -124,11 +123,9 @@ def read_file(file_path):
 def check_3s_vol(line, val):
     segs = line.split(',')
     try:
-        vol = segs[6].split(':')[1]
+        vol = segs[5].split(':')[1]
         if float(vol) > val:
-            return True
-        else:
-            return False
+            print (line)
     except:
         print ('exception')
 
@@ -147,8 +144,9 @@ def check_ask_bid(line):
         ask_vol = float(segs[9].split(':')[1])
         bid_vol = float(segs[10].split(':')[1])
         ths_vol = float(segs[8].split(':')[1])
-        if ask_vol > 2 * bid_vol or bid_vol > 2 * ask_vol:
-            return True
+        if ths_vol > 100000:
+            if ask_vol > 2 * bid_vol or bid_vol > 2 * ask_vol:
+                return True
     return False
 
 
@@ -159,7 +157,7 @@ def check_incr_rate(line):
         price_10s= float(segs[2].split(':')[1])
         price_1m = float(segs[3].split(':')[1])
         price_5m = float(segs[4].split(':')[1])
-        if price_3s > price_5m * 1.004 and price_3s > price_1m * 1.002:
+        if price_3s > price_1m * 1.003 and price_3s > price_10s * 1.001:
             return True
 
 
@@ -170,7 +168,7 @@ def check_decr_rate(line):
         price_10s= float(segs[2].split(':')[1])
         price_1m = float(segs[3].split(':')[1])
         price_5m = float(segs[4].split(':')[1])
-        if price_3s < price_1m * 0.998 and price_3s < price_5m * 0.996:
+        if price_3s < price_1m * 0.997 and price_3s < price_10s * 0.999:
             return True
 
 
@@ -184,11 +182,10 @@ def query_24h_vol():
     avg_vol = float(okSpot.ticker("eos_usdt")['ticker']['vol']) / 24 / 60
     print(avg_vol)
 
-
 if __name__=='__main__':
     # query_24h_vol()
     path = '/Users/linchuanli/PycharmProjects/moneymaker'
-    lines = read_file(path + '/etc_future_deals_20181026.txt')
+    lines = read_file(path + '/etc_deals_20180919.txt')
     last_time = ''
     last_line = ''
     for line in lines:
@@ -201,9 +198,10 @@ if __name__=='__main__':
     #             print(line + '\n')
     #     last_line = line
 
-        if check_3s_vol(line, 10000):
-            # if check_incr_rate(line) or check_decr_rate(line):
+        if check_1min_vol(line, 16000):
+            if check_incr_rate(line) or check_decr_rate(line):
                 # if check_ask_bid(line):
+                # print(line)
                     stime = extract_time(line)
                     if stime != last_time:
                         print(line)
