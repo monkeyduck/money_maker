@@ -37,17 +37,13 @@ if __name__ == '__main__':
     from config_avg import spotAPI
 
     instrument_id = "eos_usdt"
-    # future api test
-    # result = buyin_more_batch(spotAPI, coin_name, time_type, 7, 20, 5)
-    # result = spotAPI.get_coin_account("etc")
-    # result = buyin_less(spotAPI, coin_name, time_type, 6.4, 1, 20)
 
-    # result = spot_sell(spotAPI, instrument_id, 0.1, 8.059)
     result = spotAPI.get_ledger_record_paging("eos", 1, '', 100)
     print('count: %d' % len(result))
     for each_r in result:
         o_id = each_r['details']['order_id']
         spotAPI.get_fills(o_id, instrument_id, 1, '', 100)
+
     print(result)
     # time.sleep(10)
     # ret = spot_revoke(spotAPI, instrument_id, '1924000642830336')

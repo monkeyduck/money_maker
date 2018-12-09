@@ -29,7 +29,6 @@ sell_price = 0
 amount = 1
 sell_queue = []
 buy_queue = []
-first = True
 ask_price = 0
 bid_price = 0
 last_time_sec = 0
@@ -51,6 +50,7 @@ class SpotMaker:
     def __init__(self, interval):
         self.timeInterval = interval
         self.log_file = os.getcwd() + '/spot_maker.log'
+
 
     def timeLog(self, log):
         print(log)
@@ -269,6 +269,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         coin_name = sys.argv[1]
     instrument_id = coin_name + "_usdt"
+
     ws = websocket.WebSocketApp("wss://real.okex.com:10440/websocket/okexapi?compress=true",
                                 on_message=on_message,
                                 on_error=on_error,
