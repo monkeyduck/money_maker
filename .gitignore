@@ -111,3 +111,8 @@ history_data/
 # scripts
 dailyMove.sh
 
+# config
+config_*
+
+*.docx
+
