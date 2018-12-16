@@ -248,7 +248,7 @@ def sell_more_batch(futureAPI, time_type, latest_price, lever_rate=20):
         amount = int(jRet["holding"][0]["long_avail_qty"])
         turn = int(amount / batch_size)
         if turn == 0:
-            ret = futureAPI.take_order('', time_type, 3, latest_price - 0.005, amount, 0, lever_rate)
+            ret = futureAPI.take_order('', time_type, 3, latest_price, amount, 1, lever_rate)
             print(ret)
             if ret and ret['result']:
                 break
@@ -275,7 +275,7 @@ def sell_less_batch(futureAPI, time_type, latest_price, lever_rate=20):
         amount = int(jRet["holding"][0]["short_avail_qty"])
         turn = int(amount / batch_size)
         if turn == 0:
-            ret = futureAPI.take_order('', time_type, 4, latest_price + 0.005, amount, 0, lever_rate)
+            ret = futureAPI.take_order('', time_type, 4, latest_price, amount, 1, lever_rate)
             print(ret)
             if ret and ret['result']:
                 break

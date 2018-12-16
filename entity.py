@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import os
-
+from collections import deque
 
 def handle_deque(deq, entity, ts, ind):
     while len(deq) > 0:
@@ -21,6 +21,10 @@ class Coin:
     def __init__(self, name, refer):
         self.name = name
         self.refer = refer
+        self.deque_30s = deque()
+        self.deque_5min = deque()
+        self.ind_30s = Indicator(30)
+        self.ind_5min = Indicator(300)
 
     def gen_file_name(self):
         file_path = os.getcwd()
@@ -41,6 +45,32 @@ class Coin:
         file_path = os.getcwd()
         depth = file_path + '/' + self.name + '_future_depth.txt'
         return depth
+
+    def get_instrument_id(self):
+        return self.name + "_" + self.refer
+
+    def process_entity(self, entity, now_time_second):
+        self.handle_deque(self.deque_30s, entity, now_time_second, self.ind_30s)
+        self.handle_deque(self.deque_5min, entity, now_time_second, self.ind_5min)
+
+    def handle_deque(self, deq, entity, ts, ind):
+        while len(deq) > 0:
+            left = deq.popleft()
+            if float(left.time + ind.interval) > float(ts):
+                deq.appendleft(left)
+                break
+            ind.minus_vol(left)
+            ind.minus_price(left)
+        deq.append(entity)
+        ind.add_price(entity)
+        ind.add_vol(entity)
+
+    def get_avg_price_30s(self):
+        return self.ind_30s.cal_avg_price()
+
+    def get_avg_price_5min(self):
+        return self.ind_5min.cal_avg_price()
+
 
 
 class IndexEntity:

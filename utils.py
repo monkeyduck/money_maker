@@ -9,6 +9,7 @@ import hmac
 import base64
 import datetime
 import consts as c
+import time
 
 
 def sign(message, secretKey):
@@ -64,6 +65,21 @@ def inflate(data):
     return inflated
 
 
+def string2timestamp(stime):
+    # 格式化时间
+    if '.' in stime:
+        format_time = stime.split('.')[0]
+    else:
+        format_time = stime
+    # 时间
+    try:
+        ts = time.strptime(format_time, "%Y-%m-%dT%H:%M:%S")
+        return time.mktime(ts)
+    except Exception as e:
+        print(repr(e))
+        print(stime)
+
+
 def timestamp2string(ts):
     time_stamp = int(ts)
     try:
@@ -85,6 +101,14 @@ def cal_rate(cur_price, last_price):
     else:
         return 0
 
+
+def cal_weighted(prices, weights):
+    if len(prices) != len(weights):
+        return 0
+    w = 0
+    for i in range(len(prices)):
+        w += prices[i] * weights[i]
+    return w
 
 def send_email(message):
     # 第三方 SMTP 服务
@@ -108,3 +132,7 @@ def send_email(message):
         print("邮件发送成功")
     except smtplib.SMTPException as e:
         print("Error: 无法发送邮件:", e)
+
+
+if __name__ == '__main__':
+    print(string2timestamp(get_timestamp()))

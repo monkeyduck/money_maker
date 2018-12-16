@@ -9,9 +9,9 @@ from utils import timestamp2string
 def calc_EMA(df, N):
     for i in range(len(df)):
         if i==0:
-            df.ix[i,'ema']=df.ix[i,'close']
+            df.ix[i,'ema']=float(df.ix[i,'close'])
         if i>0:
-            df.ix[i,'ema']=((N-1)*df.ix[i-1,'ema']+2*df.ix[i,'close'])/(N+1)
+            df.ix[i,'ema']=((N-1)*df.ix[i-1,'ema']+2*float(df.ix[i,'close']))/(N+1)
     ema=list(df['ema'])
     return ema
 
@@ -34,6 +34,20 @@ def get_macd(okFuture, symbol, contract_type, type1, size=None):
     df = pd.DataFrame(data=data, columns=['timestamp', 'open', 'high', 'low', 'close', 'amount', 'amount2'])
     macd = calc_MACD(df, 7, 8, 3)
     return df
+
+
+def get_spot_macd(spotAPI, instrument_id, gap):
+    data = spotAPI.get_kline(instrument_id, '', '', gap)[::-1]
+    df = pd.DataFrame(data=data, columns=['close', 'high', 'low', 'open', 'time', 'volume'])
+    macd = calc_MACD(df, 7, 8, 3)
+    return df
+
+
+def check_trend(macd):
+    if macd[-1] > macd[-2] > macd[-3]:
+        return 'up'
+    if macd[-1] < macd[-2] < macd[-3]:
+        return 'down'
 
 
 def get_macd_val(okFuture, symbol, contract_type, type1, size=None):

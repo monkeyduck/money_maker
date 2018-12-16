@@ -74,7 +74,7 @@ def on_open(ws):
 
 
 if __name__ == '__main__':
-    # ws = websocket.WebSocketApp("wss://real.okex.com:10442/ws/v3?compress=true",
+
     ws = websocket.WebSocketApp("wss://real.okex.com:10440/websocket/okexapi?compress=true",
                                 on_message=on_message,
                                 on_error=on_error,
