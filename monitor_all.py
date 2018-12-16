@@ -87,38 +87,51 @@ def on_message(ws, message):
         deal_entity = DealEntity(jdata[0], latest_price, round(float(jdata[2]), 3), ts, jdata[4])
         if channel == 'ok_sub_spot_btc_usdt_deals':
             coin_btc.process_entity(deal_entity, ts)
-            btc_30s_change = cal_rate(latest_price, coin_btc.get_avg_price_30s())
-            btc_5min_change = cal_rate(latest_price, coin_btc.get_avg_price_5min())
-            print('btc 30s change: %.3f%%, 5min change: %.3f%%' % (eth_30s_change, eth_5min_change))
+            btc_30s_change = cal_rate(coin_btc.get_avg_price_3s(), coin_btc.get_avg_price_60s())
+            btc_5min_change = cal_rate(coin_btc.get_avg_price_3s(), coin_btc.get_avg_price_5min())
+            coin_change_info = 'btc 30s change: %.3f%%, 5min change: %.3f%%\r\n' % (btc_30s_change, btc_5min_change)
+            write_lines.append(coin_change_info)
+            print (coin_change_info)
 
         elif channel == 'ok_sub_spot_etc_usdt_deals':
             coin_etc.process_entity(deal_entity, ts)
-            etc_30s_change = cal_rate(latest_price, coin_etc.get_avg_price_30s())
-            etc_5min_change = cal_rate(latest_price, coin_etc.get_avg_price_5min())
-            print('etc 30s change: %.3f%%, 5min change: %.3f%%' % (eth_30s_change, eth_5min_change))
+            etc_30s_change = cal_rate(coin_etc.get_avg_price_3s(), coin_etc.get_avg_price_60s())
+            etc_5min_change = cal_rate(coin_etc.get_avg_price_3s(), coin_etc.get_avg_price_5min())
+            coin_change_info = 'etc 30s change: %.3f%%, 5min change: %.3f%%\r\n' % (etc_30s_change, etc_5min_change)
+            write_lines.append(coin_change_info)
+            print (coin_change_info)
 
         elif channel == 'ok_sub_spot_ltc_usdt_deals':
             coin_ltc.process_entity(deal_entity, ts)
-            ltc_30s_change = cal_rate(latest_price, coin_ltc.get_avg_price_30s())
-            ltc_5min_change = cal_rate(latest_price, coin_ltc.get_avg_price_5min())
-            print('ltc 30s change: %.3f%%, 5min change: %.3f%%' % (eth_30s_change, eth_5min_change))
+            ltc_30s_change = cal_rate(coin_ltc.get_avg_price_3s(), coin_ltc.get_avg_price_60s())
+            ltc_5min_change = cal_rate(coin_ltc.get_avg_price_3s(), coin_ltc.get_avg_price_5min())
+            coin_change_info = 'ltc 30s change: %.3f%%, 5min change: %.3f%%\r\n' % (ltc_30s_change, ltc_5min_change)
+            write_lines.append(coin_change_info)
+            print (coin_change_info)
 
         elif channel == 'ok_sub_spot_eos_usdt_deals':
             coin_eos.process_entity(deal_entity, ts)
-            eos_30s_change = cal_rate(latest_price, coin_eos.get_avg_price_30s())
-            eos_5min_change = cal_rate(latest_price, coin_eos.get_avg_price_5min())
-            print('eos 30s change: %.3f%%, 5min change: %.3f%%' % (eth_30s_change, eth_5min_change))
+            eos_30s_change = cal_rate(coin_eos.get_avg_price_3s(), coin_eos.get_avg_price_60s())
+            eos_5min_change = cal_rate(coin_eos.get_avg_price_3s(), coin_eos.get_avg_price_5min())
+            coin_change_info = 'eos 30s change: %.3f%%, 5min change: %.3f%%\r\n' % (eos_30s_change, eos_5min_change)
+            write_lines.append(coin_change_info)
+            print (coin_change_info)
 
         elif channel == 'ok_sub_spot_eth_usdt_deals':
             coin_eth.process_entity(deal_entity, ts)
-            eth_30s_change = cal_rate(latest_price, coin_eth.get_avg_price_30s())
-            eth_5min_change = cal_rate(latest_price, coin_eth.get_avg_price_5min())
-            print('eth 30s change: %.3f%%, 5min change: %.3f%%' % (eth_30s_change, eth_5min_change))
+            eth_30s_change = cal_rate(coin_eth.get_avg_price_3s(), coin_eth.get_avg_price_60s())
+            eth_5min_change = cal_rate(coin_eth.get_avg_price_3s(), coin_eth.get_avg_price_5min())
+            coin_change_info = 'eth 30s change: %.3f%%, 5min change: %.3f%%\r\n' % (eth_30s_change, eth_5min_change)
+            write_lines.append(coin_change_info)
+            print (coin_change_info)
+
         elif channel == 'ok_sub_spot_xrp_usdt_deals':
             coin_xrp.process_entity(deal_entity, ts)
-            xrp_30s_change = cal_rate(latest_price, coin_xrp.get_avg_price_30s())
-            xrp_5min_change = cal_rate(latest_price, coin_xrp.get_avg_price_5min())
-            print('xrp 30s change: %.3f%%, 5min change: %.3f%%' % (eth_30s_change, eth_5min_change))
+            xrp_30s_change = cal_rate(coin_xrp.get_avg_price_3s(), coin_xrp.get_avg_price_60s())
+            xrp_5min_change = cal_rate(coin_xrp.get_avg_price_3s(), coin_xrp.get_avg_price_5min())
+            coin_change_info = 'xrp 30s change: %.3f%%, 5min change: %.3f%%\r\n' % (xrp_30s_change, xrp_5min_change)
+            write_lines.append(coin_change_info)
+            print (coin_change_info)
 
         prices_30s = [btc_30s_change, eth_30s_change, ltc_30s_change, etc_30s_change, eos_30s_change, xrp_30s_change]
         prices_5min = [btc_5min_change, eth_5min_change, ltc_5min_change, etc_5min_change, eos_5min_change, xrp_5min_change]
@@ -149,7 +162,7 @@ def on_message(ws, message):
                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                     f.writelines(info + '\n')
         elif less == 0 and weighted_30s_change < -0.2 and weighted_5min_change < -0.3:
-            if buyin_less(futureAPI, coin_eos.name, time_type, latest_price - 0.01):
+            if buyin_less(futureAPI, coin_eos.name, time_type):
                 less = 1
                 thread.start_new_thread(ensure_buyin_less, (futureAPI, coin_eos.name, time_type, latest_price,))
                 buy_price = latest_price

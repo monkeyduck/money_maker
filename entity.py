@@ -21,9 +21,11 @@ class Coin:
     def __init__(self, name, refer):
         self.name = name
         self.refer = refer
+        self.deque_3s = deque()
         self.deque_30s = deque()
         self.deque_5min = deque()
-        self.ind_30s = Indicator(30)
+        self.ind_3s = Indicator(3)
+        self.ind_60s = Indicator(60)
         self.ind_5min = Indicator(300)
 
     def gen_file_name(self):
@@ -50,7 +52,8 @@ class Coin:
         return self.name + "_" + self.refer
 
     def process_entity(self, entity, now_time_second):
-        self.handle_deque(self.deque_30s, entity, now_time_second, self.ind_30s)
+        self.handle_deque(self.deque_3s, entity, now_time_second, self.ind_3s)
+        self.handle_deque(self.deque_30s, entity, now_time_second, self.ind_60s)
         self.handle_deque(self.deque_5min, entity, now_time_second, self.ind_5min)
 
     def handle_deque(self, deq, entity, ts, ind):
@@ -65,8 +68,11 @@ class Coin:
         ind.add_price(entity)
         ind.add_vol(entity)
 
-    def get_avg_price_30s(self):
-        return self.ind_30s.cal_avg_price()
+    def get_avg_price_3s(self):
+        return self.ind_3s.cal_avg_price()
+
+    def get_avg_price_60s(self):
+        return self.ind_60s.cal_avg_price()
 
     def get_avg_price_5min(self):
         return self.ind_5min.cal_avg_price()
