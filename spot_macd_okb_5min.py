@@ -110,7 +110,7 @@ if __name__ == '__main__':
                 dea = list(df['dea'])
                 timestamp = list(df['time'])
                 new_macd = 2 * (diff[-1] - dea[-1])
-                if more == 1 and ((check_trend(list(df['macd'])) == 'down' and new_macd < 0.0001) or new_macd < 0):
+                if more == 1 and ((check_trend(list(df['macd'])) == 'down' and new_macd < 0.00005) or new_macd < 0):
                     ret = spotAPI.get_specific_ticker(instrument_id)
                     sell_price = float(ret['best_ask']) - 0.0001
                     order_id = sell_all_position(spotAPI, instrument_id, sell_price)
