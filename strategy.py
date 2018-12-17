@@ -44,9 +44,9 @@ def get_spot_macd(spotAPI, instrument_id, gap):
 
 
 def check_trend(macd):
-    if macd[-1] > macd[-2] > macd[-3]:
+    if macd[-1] > macd[-2]:
         return 'up'
-    if macd[-1] < macd[-2] < macd[-3]:
+    if macd[-1] < macd[-2] < macd[-3] < macd[-4]:
         return 'down'
 
 

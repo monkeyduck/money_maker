@@ -8,7 +8,7 @@ except ImportError:
 from utils import timestamp2string, cal_rate, inflate
 from trade_v3 import buyin_more, buyin_less, ensure_buyin_more, ensure_buyin_less, sell_less_batch, sell_more_batch, ensure_sell_more, ensure_sell_less
 from entity import Coin, Indicator, DealEntity
-from config_avg import futureAPI, vol_1m_line, vol_3s_line, vol_1m_bal, vol_3s_bal, incr_5m_rate, incr_1m_rate, incr_10s_rate
+from config_strict import futureAPI, vol_1m_line, vol_3s_line, vol_1m_bal, vol_3s_bal, incr_5m_rate, incr_1m_rate, incr_10s_rate
 import time
 import json
 
@@ -19,7 +19,7 @@ import codecs
 
 # 默认币种handle_deque
 coin = Coin("etc", "usdt")
-time_type = "ETC-USD-181228"
+time_type = "ETC-USD-190329"
 file_transaction, file_deal = coin.gen_future_file_name()
 
 deque_min = deque()
