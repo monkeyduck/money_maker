@@ -43,6 +43,13 @@ class SpotAPI(Client):
         params = {'instrument_id': instrument_id, 'order_ids': order_ids}
         return self._request_with_params(POST, SPOT_REVOKE_ORDERS, params)
 
+    # revoke order handling exceptions
+    def revoke_order_exception(self, instrument_id, order_id):
+        try:
+            self.revoke_order(instrument_id, order_id)
+        except Exception as e:
+            print(repr(e))
+
     # query orders list
     #def get_orders_list(self, status, instrument_id, before, after, limit):
     #    params = {'status': status, 'instrument_id': instrument_id, 'before': before, 'after': after, 'limit': limit}

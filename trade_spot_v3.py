@@ -3,7 +3,7 @@
 
 import json
 import math
-from utils import send_email,timestamp2string
+from utils import send_email,timestamp2string, string2timestamp
 import time
 import codecs
 try:
@@ -13,17 +13,28 @@ except ImportError:
 
 
 def spot_buy(spotAPI, instrument_id, amount, price):
-    ret = spotAPI.take_order('limit', 'buy', instrument_id, amount, margin_trading=1, client_oid='', price=price, funds='', )
-    if ret and ret['result']:
-        return ret["order_id"]
-    return False
+    try:
+        if amount > 0:
+            amount = float(math.floor(amount * 100) / 100)
+            ret = spotAPI.take_order('limit', 'buy', instrument_id, amount, margin_trading=1, client_oid='', price=price, funds='', )
+            if ret and ret['result']:
+                return ret["order_id"]
+        return False
+    except Exception as e:
+        print(repr(e))
+        return False
 
 
 def spot_sell(spotAPI, instrument_id, amount, price):
-    ret = spotAPI.take_order('limit', 'sell', instrument_id, amount, margin_trading=1, client_oid='', price=price, funds='', )
-    if ret and ret['result']:
-        return ret["order_id"]
-    return False
+    try:
+        if amount > 0:
+            ret = spotAPI.take_order('limit', 'sell', instrument_id, amount, margin_trading=1, client_oid='', price=price, funds='', )
+            if ret and ret['result']:
+                return ret["order_id"]
+        return False
+    except Exception as e:
+        print(repr(e))
+        return False
 
 
 def spot_revoke(spotAPI, instrument_id, order_id):
@@ -35,8 +46,8 @@ def spot_revoke(spotAPI, instrument_id, order_id):
 def buy_all_position(spotAPI, instrument_id, buy_price):
     usdt_account = spotAPI.get_coin_account_info("usdt")
     usdt_available = float(usdt_account['available'])
-    amount = math.floor(usdt_available / buy_price)
-    if amount > 1:
+    amount = float(usdt_available / buy_price)
+    if amount > 0:
         return spot_buy(spotAPI, instrument_id, amount, buy_price)
     return False
 
@@ -97,7 +108,9 @@ if __name__ == '__main__':
     instrument_id = "eos_usdt"
     ret = spotAPI.get_kline(instrument_id, '', '', 60)
     print(ret)
-    ret = spotAPI.get_specific_ticker(instrument_id)
-    print(ret)
+    print(ret[5])
+    # ret = spotAPI.get_specific_ticker(instrument_id)
+    # print(ret)
+
 
 

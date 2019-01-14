@@ -16,11 +16,9 @@ import traceback
 from collections import deque
 import websocket
 import codecs
+import sys
 
 # 默认币种handle_deque
-coin = Coin("etc", "usdt")
-time_type = "ETC-USD-190329"
-file_transaction, file_deal = coin.gen_future_file_name()
 
 deque_min = deque()
 deque_10s = deque()
@@ -79,6 +77,13 @@ def cal_price_ago(deq):
     return avg_price
 
 
+def coin_recent_change_rate(coin_name):
+    coin_instrument = coin_name.upper() + "-USD-190329"
+    k_line = futureAPI.get_kline(coin_instrument, 60)
+    close = float(k_line[0][4])
+    open = float(k_line[1][1])
+    return cal_rate(close, open)
+
 def on_message(ws, message):
     message = bytes.decode(inflate(message), 'utf-8')  # data decompress
     if 'pong' in message or 'addChannel' in message:
@@ -113,10 +118,10 @@ def on_message(ws, message):
             handle_deque(deque_3s, deal_entity, ts, ind_3s)
             handle_deque(deque_10s, deal_entity, ts, ind_10s)
             handle_deque(deque_min, deal_entity, ts, ind_1min)
-            price_5m_ago = handle_deque(deque_5m, deal_entity, ts, ind_5m)
+            handle_deque(deque_5m, deal_entity, ts, ind_5m)
 
             # price_5m_ago = cal_price_ago(deque_5m)
-            print("price_5m_ago: %.4f" % price_5m_ago)
+            # print("price_5m_ago: %.4f" % price_5m_ago)
             avg_3s_price = ind_3s.cal_avg_price()
             avg_10s_price = ind_10s.cal_avg_price()
             avg_min_price = ind_1min.cal_avg_price()
@@ -124,9 +129,16 @@ def on_message(ws, message):
             price_10s_change = cal_rate(avg_3s_price, avg_10s_price)
             price_1m_change = cal_rate(avg_3s_price, avg_min_price)
             price_5m_change = cal_rate(avg_3s_price, avg_5m_price)
-            price_5m_ago_change = cal_rate(latest_price, price_5m_ago)
+            # price_5m_ago_change = cal_rate(latest_price, price_5m_ago)
 
             if more == 1:
+                # 盈利中，放宽卖出条件，盈利最大化
+                if latest_price > buy_price:
+                    if price_1m_change <= -0.1 and price_5m_change <= 0:
+                        if sell_more_batch(futureAPI, time_type, latest_price):
+                            more = 0
+                            thread.start_new_thread(ensure_sell_more, (futureAPI, coin.name, time_type, latest_price, buy_price,))
+                else:
                     if price_1m_change <= -0.2 or price_5m_change <= 0:
                         if sell_more_batch(futureAPI, time_type, latest_price):
                             more = 0
@@ -145,49 +157,34 @@ def on_message(ws, message):
                             less = 0
                             thread.start_new_thread(ensure_sell_less, (futureAPI, coin.name, time_type, latest_price, buy_price,))
 
-            # elif moreless == 1:
-            #     if latest_price < buy_price:
-            #         if price_1m_change > 0:
-            #             if sell_less_batch(futureAPI, time_type, latest_price):
-            #                 moreless = 0
-            #                 thread.start_new_thread(ensure_sell_less, (futureAPI, coin.name, time_type, latest_price, buy_price,))
-            #     else:
-            #         if price_10s_change >= 0.05 or price_1m_change > 0:
-            #             if sell_less_batch(futureAPI, time_type, latest_price):
-            #                 moreless = 0
-            #                 thread.start_new_thread(ensure_sell_less, (futureAPI, coin.name, time_type, latest_price, buy_price,))
+            if price_1m_change >= 0.2 and price_5m_change >= 0.3:
+                btc_change = coin_recent_change_rate("btc")
+                eth_change = coin_recent_change_rate("eth")
+                print('btc_change: %.2f%%, eth change: %.2f%%' % (btc_change, eth_change))
+                write_lines.append('btc_change: %.2f%%, eth change: %.2f%% \r\n' % (btc_change, eth_change))
 
-            # elif price_10s_change <= -0.05 and price_1m_change <= -0.2 and price_5m_ago_change > 1 and ind_3s.ask_vol > 10 * ind_3s.bid_vol and ind_3s.vol > 5000:
-            #     if buyin_less(futureAPI, coin.name, time_type, latest_price - 0.003):
-            #         moreless = 1
-            #         thread.start_new_thread(ensure_buyin_less, (futureAPI, coin.name, time_type, latest_price,))
-            #         buy_price = latest_price
-            #         info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-            #         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-            #             f.writelines(info + '\n')
+                if btc_change >= 0.5 and eth_change >= 0.5:
+                    if buyin_more(futureAPI, coin.name, time_type, latest_price + 0.01):
+                        more = 1
+                        thread.start_new_thread(ensure_buyin_more, (futureAPI, coin.name, time_type, latest_price,))
+                        buy_price = latest_price
+                        info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + now_time
+                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                            f.writelines(info + '\n')
 
-            elif check_vol():
-                if price_1m_change >= incr_1m_rate and 1.5 > price_5m_change >= incr_5m_rate and 0.3 > price_10s_change >= incr_10s_rate and price_10s_change <= price_1m_change <= price_5m_change:
-                    if ind_3s.bid_vol >= vol_3s_bal * ind_3s.ask_vol and ind_1min.bid_vol >= vol_1m_bal * ind_1min.ask_vol and ind_1min.vol > vol_1m_line:
-                        if latest_price > last_avg_price > avg_3s_price > avg_10s_price > avg_min_price > avg_5m_price:
-                            if buyin_more(futureAPI, coin.name, time_type, latest_price + 0.01):
-                                more = 1
-                                thread.start_new_thread(ensure_buyin_more, (futureAPI, coin.name, time_type, latest_price,))
-                                buy_price = latest_price
-                                info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                    f.writelines(info + '\n')
-
-                elif price_5m_change <= -incr_5m_rate and -0.8 < price_1m_change <= -incr_1m_rate and price_10s_change <= -incr_10s_rate and price_10s_change >= price_1m_change >= price_5m_change:
-                    if ind_3s.ask_vol >= vol_3s_bal * ind_3s.bid_vol and ind_1min.ask_vol >= vol_1m_bal * ind_1min.bid_vol:
-                        if latest_price < last_avg_price < avg_3s_price < avg_10s_price < avg_min_price < avg_5m_price:
-                            if buyin_less(futureAPI, coin.name, time_type, latest_price - 0.01):
-                                less = 1
-                                thread.start_new_thread(ensure_buyin_less, (futureAPI, coin.name, time_type, latest_price,))
-                                buy_price = latest_price
-                                info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                    f.writelines(info + '\n')
+            elif price_1m_change <= -0.2 and price_5m_change <= -0.3:
+                btc_change = coin_recent_change_rate("btc")
+                eth_change = coin_recent_change_rate("eth")
+                print('btc_change: %.2f%%, eth change: %.2f%%' % (btc_change, eth_change))
+                write_lines.append('btc_change: %.2f%%, eth change: %.2f%% \r\n' % (btc_change, eth_change))
+                if btc_change <= -0.6 and eth_change <= -0.6:
+                    if buyin_less(futureAPI, coin.name, time_type, latest_price - 0.01):
+                        less = 1
+                        thread.start_new_thread(ensure_buyin_less, (futureAPI, coin.name, time_type, latest_price,))
+                        buy_price = latest_price
+                        info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
+                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                            f.writelines(info + '\n')
 
             last_avg_price = latest_price
 
@@ -197,8 +194,8 @@ def on_message(ws, message):
             vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f, 3s_ask_vol: %.3f, 3s_bid_vol: %.3f' \
                        % (deal_entity.amount, ind_3s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
                           ind_3s.ask_vol, ind_3s.bid_vol)
-            rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 5min_rate: %.2f%%, 5min_ago_rate: %.2f%%' \
-                        % (price_10s_change, price_1m_change, price_5m_change, price_5m_ago_change)
+            rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 5min_rate: %.2f%%' \
+                        % (price_10s_change, price_1m_change, price_5m_change)
             write_info = price_info + u', ' + vol_info + u', ' + rate_info + u', ' + now_time + '\r\n'
             write_lines.append(write_info)
             if len(write_lines) >= 100:
@@ -231,14 +228,22 @@ def on_open(ws):
 
 
 if __name__ == '__main__':
-    ws = websocket.WebSocketApp("wss://real.okex.com:10440/websocket/okexapi?compress=true",
-                                on_message=on_message,
-                                on_error=on_error,
-                                on_close=on_close)
-    ws.on_open = on_open
-    while True:
-        ws.run_forever(ping_interval=20, ping_timeout=10)
-        print("write left lines into file...")
-        with codecs.open(file_deal, 'a+', 'UTF-8') as f:
-            f.writelines(write_lines)
-            write_lines = []
+    if len(sys.argv) > 1:
+        coin_name = sys.argv[1]
+        coin = Coin(coin_name, 'usdt')
+        time_type = coin.name.upper() + "-USD-190329"
+        file_transaction, file_deal = coin.gen_future_file_name()
+        ws = websocket.WebSocketApp("wss://real.okex.com:10440/websocket/okexapi?compress=true",
+                                    on_message=on_message,
+                                    on_error=on_error,
+                                    on_close=on_close)
+        ws.on_open = on_open
+        while True:
+            ws.run_forever(ping_interval=20, ping_timeout=10)
+            print("write left lines into file...")
+            with codecs.open(file_deal, 'a+', 'UTF-8') as f:
+                f.writelines(write_lines)
+                write_lines = []
+    else:
+        print('缺少输入参数 coin_name')
+        print('python monitor_with_maincoin eos')

@@ -5,7 +5,7 @@ try:
     import thread
 except ImportError:
     import _thread as thread
-from utils import timestamp2string, cal_rate, inflate
+from utils import timestamp2string, cal_rate, inflate, calc_stf
 from trade_v3 import buyin_more, buyin_less, ensure_buyin_more, ensure_buyin_less, sell_less_batch, sell_more_batch, ensure_sell_more, ensure_sell_less
 from entity import Coin, Indicator, DealEntity
 from config_avg import futureAPI, vol_1m_line, vol_3s_line, vol_1m_bal, vol_3s_bal, incr_5m_rate, incr_1m_rate, incr_10s_rate
@@ -27,6 +27,8 @@ deque_10s = deque()
 deque_3s = deque()
 deque_5m = deque()
 latest_price = 0
+last_price = 0
+last_last_price = 0
 ind_1min = Indicator(60)
 ind_10s = Indicator(10)
 ind_3s = Indicator(3)
@@ -34,6 +36,7 @@ ind_5m = Indicator(300)
 more = 0
 less = 0
 moreless = 0
+stf = 0
 last_avg_price = 0
 buy_price = 0
 
@@ -84,7 +87,7 @@ def on_message(ws, message):
     if 'pong' in message or 'addChannel' in message:
         return
     global latest_price, last_avg_price, buy_price, more, less, deque_3s, deque_10s, deque_min, \
-        deque_5m, ind_3s, ind_10s, ind_1min, ind_5m, write_lines, last_5min_macd, last_5min_macd_ts, moreless
+        deque_5m, ind_3s, ind_10s, ind_1min, ind_5m, write_lines, last_5min_macd, last_5min_macd_ts, moreless, stf, last_price, last_last_price
     jmessage = json.loads(message)
 
     ts = time.time()
@@ -109,14 +112,12 @@ def on_message(ws, message):
         for jdata in each_message['data']:
             latest_price = float(jdata[1])
             deal_entity = DealEntity(jdata[0], float(jdata[1]), round(float(jdata[2]), 3), ts, jdata[4])
-
+            stf += calc_stf(deal_entity, last_price, last_last_price)
             handle_deque(deque_3s, deal_entity, ts, ind_3s)
             handle_deque(deque_10s, deal_entity, ts, ind_10s)
             handle_deque(deque_min, deal_entity, ts, ind_1min)
             price_5m_ago = handle_deque(deque_5m, deal_entity, ts, ind_5m)
 
-            # price_5m_ago = cal_price_ago(deque_5m)
-            print("price_5m_ago: %.4f" % price_5m_ago)
             avg_3s_price = ind_3s.cal_avg_price()
             avg_10s_price = ind_10s.cal_avg_price()
             avg_min_price = ind_1min.cal_avg_price()
@@ -145,55 +146,37 @@ def on_message(ws, message):
                             less = 0
                             thread.start_new_thread(ensure_sell_less, (futureAPI, coin.name, time_type, latest_price, buy_price,))
 
-            # elif moreless == 1:
-            #     if latest_price < buy_price:
-            #         if price_1m_change > 0:
-            #             if sell_less_batch(futureAPI, time_type, latest_price):
-            #                 moreless = 0
-            #                 thread.start_new_thread(ensure_sell_less, (futureAPI, coin.name, time_type, latest_price, buy_price,))
-            #     else:
-            #         if price_10s_change >= 0.05 or price_1m_change > 0:
-            #             if sell_less_batch(futureAPI, time_type, latest_price):
-            #                 moreless = 0
-            #                 thread.start_new_thread(ensure_sell_less, (futureAPI, coin.name, time_type, latest_price, buy_price,))
-
-            # elif price_10s_change <= -0.05 and price_1m_change <= -0.2 and price_5m_ago_change > 1 and ind_3s.ask_vol > 10 * ind_3s.bid_vol and ind_3s.vol > 5000:
-            #     if buyin_less(futureAPI, coin.name, time_type, latest_price - 0.003):
-            #         moreless = 1
-            #         thread.start_new_thread(ensure_buyin_less, (futureAPI, coin.name, time_type, latest_price,))
-            #         buy_price = latest_price
-            #         info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-            #         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-            #             f.writelines(info + '\n')
-
-            elif check_vol():
-                if price_1m_change >= incr_1m_rate and 1.5 > price_5m_change >= incr_5m_rate and 0.3 > price_10s_change >= incr_10s_rate and price_10s_change <= price_1m_change <= price_5m_change:
-                    if ind_3s.bid_vol >= vol_3s_bal * ind_3s.ask_vol and ind_1min.bid_vol >= vol_1m_bal * ind_1min.ask_vol and ind_1min.vol > vol_1m_line:
-                        if latest_price > last_avg_price > avg_3s_price > avg_10s_price > avg_min_price > avg_5m_price:
-                            if buyin_more(futureAPI, coin.name, time_type, latest_price + 0.01):
-                                more = 1
-                                thread.start_new_thread(ensure_buyin_more, (futureAPI, coin.name, time_type, latest_price,))
-                                buy_price = latest_price
-                                info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                    f.writelines(info + '\n')
-
-                elif price_5m_change <= -incr_5m_rate and -0.8 < price_1m_change <= -incr_1m_rate and price_10s_change <= -incr_10s_rate and price_10s_change >= price_1m_change >= price_5m_change:
-                    if ind_3s.ask_vol >= vol_3s_bal * ind_3s.bid_vol and ind_1min.ask_vol >= vol_1m_bal * ind_1min.bid_vol:
-                        if latest_price < last_avg_price < avg_3s_price < avg_10s_price < avg_min_price < avg_5m_price:
-                            if buyin_less(futureAPI, coin.name, time_type, latest_price - 0.01):
-                                less = 1
-                                thread.start_new_thread(ensure_buyin_less, (futureAPI, coin.name, time_type, latest_price,))
-                                buy_price = latest_price
-                                info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                    f.writelines(info + '\n')
+            # elif check_vol():
+            #     if price_1m_change >= incr_1m_rate and 1.5 > price_5m_change >= incr_5m_rate and 0.3 > price_10s_change >= incr_10s_rate and price_10s_change <= price_1m_change <= price_5m_change:
+            #         if ind_3s.bid_vol >= vol_3s_bal * ind_3s.ask_vol and ind_1min.bid_vol >= vol_1m_bal * ind_1min.ask_vol and ind_1min.vol > vol_1m_line:
+            #             if latest_price > last_avg_price > avg_3s_price > avg_10s_price > avg_min_price > avg_5m_price:
+            #                 if buyin_more(futureAPI, coin.name, time_type, latest_price + 0.01):
+            #                     more = 1
+            #                     thread.start_new_thread(ensure_buyin_more, (futureAPI, coin.name, time_type, latest_price,))
+            #                     buy_price = latest_price
+            #                     info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + now_time
+            #                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+            #                         f.writelines(info + '\n')
+            #
+            #     elif price_5m_change <= -incr_5m_rate and -0.8 < price_1m_change <= -incr_1m_rate and price_10s_change <= -incr_10s_rate and price_10s_change >= price_1m_change >= price_5m_change:
+            #         if ind_3s.ask_vol >= vol_3s_bal * ind_3s.bid_vol and ind_1min.ask_vol >= vol_1m_bal * ind_1min.bid_vol:
+            #             if latest_price < last_avg_price < avg_3s_price < avg_10s_price < avg_min_price < avg_5m_price:
+            #                 if buyin_less(futureAPI, coin.name, time_type, latest_price - 0.01):
+            #                     less = 1
+            #                     thread.start_new_thread(ensure_buyin_less, (futureAPI, coin.name, time_type, latest_price,))
+            #                     buy_price = latest_price
+            #                     info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
+            #                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+            #                         f.writelines(info + '\n')
 
             last_avg_price = latest_price
+            if latest_price != last_price:
+                last_last_price = last_price
+                last_price = latest_price
 
-            price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
-                                            u'5min_price: %.4f' \
-                         % (latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_5m_price)
+            price_info = deal_entity.type + u' stf index: %.4f, now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
+                                            u'5min_price: %.4f, last_price: %.4f, last_last_price: %.4f' \
+                         % (stf, latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_5m_price, last_price, last_last_price)
             vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f, 3s_ask_vol: %.3f, 3s_bid_vol: %.3f' \
                        % (deal_entity.amount, ind_3s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
                           ind_3s.ask_vol, ind_3s.bid_vol)

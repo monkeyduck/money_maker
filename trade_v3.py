@@ -24,9 +24,9 @@ def gen_orders_data(price, amount, trade_type, num):
 
 
 def buyin_more(futureAPI, coin_name, time_type, buy_price=None, amount=None, lever_rate=20):
-    result = futureAPI.get_coin_account(coin_name)
-    balance = float(result['total_avail_balance'])
     if not amount:
+        result = futureAPI.get_coin_account(coin_name)
+        balance = float(result['total_avail_balance'])
         amount = math.floor(balance * lever_rate * buy_price / 10)
 
     turn = int(amount / batch_size)
@@ -297,16 +297,14 @@ def sell_less_batch(futureAPI, time_type, latest_price, lever_rate=20):
 
 if __name__ == '__main__':
 
-    from config_avg import futureAPI
-    time_type = "ETC-USD-181228"
+    from config_strict import futureAPI
+    time_type = "ETC-USD-190329"
     coin_name = "etc"
     # future api test
     # result = buyin_more_batch(futureAPI, coin_name, time_type, 7, 20, 5)
     # result = futureAPI.get_coin_account("etc")
     # result = buyin_less(futureAPI, coin_name, time_type, 6.4, 1, 20)
-    result = futureAPI.get_order_info("1837919127969793", time_type)
-    print(result)
-    print('finished')
+    # result = futureAPI.get_order_info("1837919127969793", time_type)
     # order_list = []
     # oid = buyin_less(futureAPI, coin_name, time_type, 7.55, 1, 20)
     # if sell_less_batch(futureAPI, time_type, 7.43):
@@ -345,15 +343,16 @@ if __name__ == '__main__':
     #result = futureAPI.get_products()
     #result = futureAPI.get_depth('BTC-USD-181019', 1)
     #result = futureAPI.get_ticker()
-    #result = futureAPI.get_specific_ticker('ETC-USD-181026')
+    # result = futureAPI.get_specific_ticker('ETC-USD-190329')
+
     #result = futureAPI.get_specific_ticker('ETC-USD-181026')
     #result = futureAPI.get_trades('ETC-USD-181026', 1, 3, 10)
-    #result = futureAPI.get_kline('ETC-USD-181026','2018-10-14T03:48:04.081Z', '2018-10-15T03:48:04.081Z')
+    result = futureAPI.get_kline('ETC-USD-190329', 60)
     #result = futureAPI.get_index('EOS-USD-181019')
     #result = futureAPI.get_products()
     # result = futureAPI.take_order("ccbce5bb7f7344288f32585cd3adf357", time_type,'2','7.1','1','1','20')
     # result = futureAPI.take_order("ccbce5bb7f7344288f32585cd3adf351",time_type,2,7.55,1,0,20)
-    # print(result)
+    print(result)
 
     #result = futureAPI.get_trades('BCH-USD-181019')
     #result = futureAPI.get_rate()

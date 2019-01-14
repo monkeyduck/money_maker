@@ -10,13 +10,13 @@ from strategy import get_spot_macd, check_trend
 from entity import Coin, Indicator, DealEntity
 from trade_spot_v3 import sell_all_position, buy_all_position
 import time
-from config_avg import spotAPI
+from config_avg import futureAPI
 import traceback
 import codecs
 
 # 默认币种handle_deque
 coin = Coin("eos", "usdt")
-instrument_id = coin.get_instrument_id()
+instrument_id = "EOS-USD-190329"
 file_transaction, file_deal = coin.gen_future_file_name()
 buy_thread = 0.0001
 
@@ -98,13 +98,7 @@ if __name__ == '__main__':
             if int(ts) - last_minute_ts > 60:
                 last_minute_ts = int(ts)
                 if more == 1:
-                    coin_account = spotAPI.get_coin_account_info(coin.name)
-                    avaliable = float(coin_account['available'])
-                    if avaliable >= 1:
-                        print("持有做多单")
-                    else:
-                        more = 0
-                        print("未持有单")
+                    print("持有做多单")
                 else:
                     print("未持有单")
                 try:
@@ -121,7 +115,7 @@ if __name__ == '__main__':
                 print('当前行情: %s' % ret)
 
                 if more == 1 and ((check_trend(list(df['macd'])) == 'down' and new_macd < buy_thread)
-                                  or new_macd < -buy_thread):
+                                  or new_macd < -buy_thread or (last_macd < 0 and new_macd < 0)):
                     sell_price = float(ret['best_ask']) - 0.001
                     order_id = sell_all_position(spotAPI, instrument_id, sell_price)
                     if order_id:

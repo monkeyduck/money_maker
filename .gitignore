@@ -116,3 +116,5 @@ config_*
 
 *.docx
 
+*.txt
+

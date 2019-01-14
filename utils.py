@@ -74,15 +74,15 @@ def string2timestamp(stime):
     # 时间
     try:
         ts = time.strptime(format_time, "%Y-%m-%dT%H:%M:%S")
-        return time.mktime(ts)
+        return int(time.mktime(ts))
     except Exception as e:
         print(repr(e))
         print(stime)
 
 
 def timestamp2string(ts):
-    time_stamp = int(ts)
     try:
+        time_stamp = int(ts)
         if len(str(time_stamp)) > 10:
             ts = float(time_stamp) / 1000
         else:
@@ -91,8 +91,7 @@ def timestamp2string(ts):
         str1 = d.strftime("%Y-%m-%d %H:%M:%S")
         return str1
     except Exception as e:
-        print(e)
-        return ''
+        return ts
 
 
 def cal_rate(cur_price, last_price):
@@ -132,6 +131,19 @@ def send_email(message):
         print("邮件发送成功")
     except smtplib.SMTPException as e:
         print("Error: 无法发送邮件:", e)
+
+
+def calc_stf(deal_entity, last_price, last_last_price):
+    if last_last_price != last_price != 0:
+        price = deal_entity.price
+        vol = deal_entity.amount
+        if price == last_price:
+            return vol * (price - last_last_price)
+        else:
+            return vol * (price - last_price)
+    return 0
+
+
 
 
 if __name__ == '__main__':

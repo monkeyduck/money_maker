@@ -51,6 +51,9 @@ class Coin:
     def get_instrument_id(self):
         return self.name + "_" + self.refer
 
+    def get_future_instrument_id(self):
+        return self.name.upper() + "-USD-190329"
+
     def process_entity(self, entity, now_time_second):
         self.handle_deque(self.deque_3s, entity, now_time_second, self.ind_3s)
         self.handle_deque(self.deque_30s, entity, now_time_second, self.ind_60s)
@@ -161,3 +164,24 @@ class Indicator:
     def minus_price(self, deal_entity):
         self.price_num -= 1
         self.price -= deal_entity.price
+
+
+class Order:
+    def __init__(self, order_id, price, amount, type, order_time):
+        self.order_id = order_id
+        self.price = price
+        self.amount = amount
+        self.type = type
+        self.order_time = order_time
+
+    def detail(self):
+        return self.type + " " + str(self.amount) + ' at price ' + str(self.price) + ', order_id: ' + self.order_id
+
+
+class Position:
+    def __init__(self, price, amount, stop_loss, time, side):
+        self.price = price
+        self.amount = amount
+        self.stop_loss = stop_loss
+        self.time = time
+        self.side = side

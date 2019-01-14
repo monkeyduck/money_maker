@@ -19,14 +19,17 @@ def gen_orders_data(price, amount, trade_type, num):
     return orders_data
 
 
-def buyin_more(okFuture, coin_name, time_type, buy_price, amount=None, lever_rate=20):
+def buyin_more(okFuture, coin_name, time_type, buy_price, amount=None, lever_rate=20, taker=False):
     json_ret = json.loads(okFuture.future_userinfo_4fix())
     balance = float(json_ret["info"][coin_name]["balance"])
     if not amount:
         amount = math.floor(balance * lever_rate * buy_price / 10)
 
     while amount >= 1:
-        ret = okFuture.future_trade(coin_name + "_usd", time_type, '', amount, 1, 1, lever_rate)
+        if taker:
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', amount, 1, 1, lever_rate)
+        else:
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, buy_price, amount, 1, 0, lever_rate)
         print(ret)
         if 'true' in ret:
             email_msg = "下单做多%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
@@ -138,13 +141,16 @@ def ensure_buyin_more(okFuture, coin_name, time_type, price):
     cancel_uncompleted_order(okFuture, coin_name, time_type, 1)
 
 
-def buyin_less(okFuture, coin_name, time_type, buy_price, amount=None, lever_rate=20):
+def buyin_less(okFuture, coin_name, time_type, buy_price, amount=None, lever_rate=20, taker=False):
     json_ret = json.loads(okFuture.future_userinfo_4fix())
     balance = float(json_ret["info"][coin_name]["balance"])
     if not amount:
         amount = math.floor(balance * lever_rate * buy_price / 10)
     while amount >= 1:
-        ret = okFuture.future_trade(coin_name + "_usd", time_type, '', amount, 2, 1, lever_rate)
+        if taker:
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', amount, 2, 1, lever_rate)
+        else:
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, buy_price, amount, 2, 0, lever_rate)
         print(ret)
         if 'true' in ret:
             email_msg = "做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
