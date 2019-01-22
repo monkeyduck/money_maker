@@ -68,8 +68,8 @@ def coin_avg_price_change(coin_list, time_gap):
     for c_name in coin_list:
         c = Coin(c_name, "usdt")
         k_line = spotAPI.get_kline(c.get_instrument_id(), '', '', 60)
-        now = float(k_line[0]['close'])
-        last = float(k_line[time_gap]['open'])
+        now = float(k_line[0][4])
+        last = float(k_line[time_gap][1])
         rate = (now - last) / last * 100
         t_rate.append(rate)
     return t_rate
@@ -98,7 +98,7 @@ def on_message(ws, message):
         avg_info += 'avg: %.3f, time: %s\r\n' % (all_coins_1min_price_change, timestamp2string(ts))
         print(avg_info)
         write_lines.append(avg_info)
-        if all_coins_1min_price_change < -0.8 and lessless == 0 and moremore == 0:
+        if all_coins_1min_price_change < -0.6 and lessless == 0 and moremore == 0:
             for i in range(random_times):
                 if random.random() >= 0.9:
                     avg_3s_price = ind_3s.cal_avg_price()
@@ -108,9 +108,9 @@ def on_message(ws, message):
                     price_10s_change = cal_rate(avg_3s_price, avg_10s_price)
                     price_1m_change = cal_rate(avg_3s_price, avg_min_price)
                     price_5m_change = cal_rate(avg_3s_price, avg_5m_price)
-                    if ind_5m.ask_vol > ind_5m.bid_vol and ind_3m.ask_vol > ind_3m.bid_vol \
-                            and ind_1min.ask_vol > 2 * ind_1min.bid_vol and ind_10s.ask_vol > 5 * ind_10s.bid_vol \
-                            and price_10s_change < 0 and price_1m_change < -0.1 and price_5m_change < -0.3:
+                    if ind_1min.ask_vol > 2 * ind_1min.bid_vol and ind_10s.ask_vol > 5 * ind_10s.bid_vol \
+                            and price_10s_change < 0 and price_1m_change < -0.1 and price_5m_change < -0.3 \
+                            and ind_1min.vol > 8 * vol_24h:
                         if buyin_less(okFuture, coin.name, time_type, latest_price - 0.01):
                             lessless = 1
                             thread.start_new_thread(ensure_buyin_less, (okFuture, coin.name, time_type, latest_price,))
@@ -121,7 +121,7 @@ def on_message(ws, message):
                     break
             random_times *= 2
 
-        elif all_coins_1min_price_change > 0.8 and lessless == 0 and moremore == 0:
+        elif all_coins_1min_price_change > 0.6 and lessless == 0 and moremore == 0:
             for i in range(random_times):
                 if random.random() >= 0.9:
                     avg_3s_price = ind_3s.cal_avg_price()
@@ -132,8 +132,9 @@ def on_message(ws, message):
                     price_10s_change = cal_rate(avg_3s_price, avg_10s_price)
                     price_1m_change = cal_rate(avg_3s_price, avg_min_price)
                     if ind_5m.ask_vol < ind_5m.bid_vol and ind_3m.ask_vol < ind_3m.bid_vol \
-                            and ind_1min.ask_vol < 2 * ind_1min.bid_vol and ind_10s.ask_vol < 5 * ind_10s.bid_vol \
-                            and price_10s_change > 0 and price_1m_change > 0.1 and price_5m_change > 0.3:
+                            and 2 * ind_1min.ask_vol < ind_1min.bid_vol and 5 * ind_10s.ask_vol < ind_10s.bid_vol \
+                            and price_10s_change > 0 and price_1m_change > 0.1 and price_5m_change > 0.3 \
+                            and ind_1min > 8 * vol_24h:
                         if buyin_more(okFuture, coin.name, time_type, latest_price + 0.01):
                             moremore = 1
                             thread.start_new_thread(ensure_buyin_more, (okFuture, coin.name, time_type, latest_price,))
@@ -195,31 +196,7 @@ def on_message(ws, message):
             price_1m_change = cal_rate(avg_3s_price, avg_min_price)
             price_5m_change = cal_rate(avg_3s_price, avg_5m_price)
 
-            if more == 1:
-                if price_1m_change <= -0.2 or price_5m_change <= 0 or price_10s_change >= 0.5:
-                    if sell_more_batch(coin.name, time_type, latest_price):
-                        more = 0
-                        thread.start_new_thread(ensure_sell_more, (coin.name, time_type,))
-
-            elif less == 1:
-                if price_1m_change >= 0.2 or price_5m_change >= 0 or price_10s_change <= -0.5:
-                    if sell_less_batch(coin.name, time_type, latest_price):
-                        less = 0
-                        thread.start_new_thread(ensure_sell_less, (coin.name, time_type,))
-
-            elif lessmore == 1:
-                if price_1m_change <= -0.12:
-                    if sell_more_batch(coin.name, time_type, latest_price):
-                        lessmore = 0
-                        thread.start_new_thread(ensure_sell_more, (coin.name, time_type,))
-
-            elif moreless == 1:
-                if price_1m_change >= 0.12:
-                    if sell_less_batch(coin.name, time_type, latest_price):
-                        moreless = 0
-                        thread.start_new_thread(ensure_sell_less, (coin.name, time_type,))
-
-            elif lessless == 1:
+            if lessless == 1:
                 if price_5m_change > 0 and new_macd > 0:
                     if sell_less_batch(coin.name, time_type, latest_price):
                         lessless = 0
@@ -227,7 +204,7 @@ def on_message(ws, message):
                         info = u'做空止盈，盈利%.3f, time: %s' % (buy_price - latest_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
-                elif price_5m_change > 0 and latest_price > buy_price:
+                elif price_5m_change > 0 and latest_price > buy_price - 0.02:
                     if sell_less_batch(coin.name, time_type, latest_price):
                         lessless = 0
                         thread.start_new_thread(ensure_sell_less, (coin.name, time_type,))
@@ -242,71 +219,14 @@ def on_message(ws, message):
                         info = u'做多止盈，盈利%.3f, time: %s' % (latest_price - buy_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
-                elif price_5m_change < 0 and latest_price < buy_price:
+                elif price_5m_change < 0 and latest_price < buy_price + 0.02:
                     if sell_more_batch(coin.name, time_type, latest_price):
                         moremore = 0
                         thread.start_new_thread(ensure_sell_more, (coin.name, time_type,))
                         info = u'做多止损，盈利%.3f, time: %s' % (latest_price - buy_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
-            else:
-                if ind_1min.vol > 30 * vol_24h and price_5m_change < -0.5 and ind_1min.ask_vol > 2 * ind_1min.bid_vol:
-                    if buyin_less(okFuture, coin.name, time_type, latest_price - 0.01):
-                        lessless = 1
-                        thread.start_new_thread(ensure_buyin_less, (okFuture, coin.name, time_type, latest_price,))
-                        buy_price = latest_price - 0.01
-                        info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                            f.writelines(info + '\n')
-                elif avg_3s_price >= highest and 0.6 >= price_1m_change >= 0.2 and price_5m_change >= 0.3 and 0 < price_10s_change < 0.2:
-                    if latest_price > avg_3s_price * 1.005:
-                        continue
-                    if (ind_1min.vol > 8 * vol_24h and ind_1min.bid_vol > 10 * ind_1min.ask_vol) \
-                            or (ind_1min.vol > 5 * vol_24h and ind_1min.bid_vol > 20 * ind_1min.ask_vol) \
-                            or (ind_1min.vol > 12 * vol_24h and ind_1min.bid_vol > 3 * ind_1min.ask_vol):
-                        if buyin_more(okFuture, coin.name, time_type, latest_price+0.01):
-                            more = 1
-                            thread.start_new_thread(ensure_buyin_more, (okFuture, coin.name, time_type, latest_price,))
-                            buy_price = latest_price + 0.01
-                            info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                            with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                f.writelines(info + '\n')
 
-                elif avg_3s_price <= lowest and -0.8 <= price_1m_change <= -0.2 and price_5m_change <= -0.3 and -0.2 < price_10s_change < 0:
-                    if latest_price < avg_3s_price * 0.995:
-                        continue
-                    if (ind_1min.vol > 8 * vol_24h and ind_1min.ask_vol > 10 * ind_1min.bid_vol) \
-                            or (ind_1min.vol > 5 * vol_24h and ind_1min.ask_vol > 20 * ind_1min.bid_vol) \
-                            or (ind_1min.vol > 12 * vol_24h and ind_1min.ask_vol > 3 * ind_1min.bid_vol):
-                        if buyin_less(okFuture, coin.name, time_type, latest_price-0.01):
-                            less = 1
-                            thread.start_new_thread(ensure_buyin_less, (okFuture, coin.name, time_type, latest_price,))
-                            buy_price = latest_price - 0.01
-                            info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                            with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                f.writelines(info + '\n')
-
-                elif price_10s_change > 0 and price_1m_change > 0 and price_5m_change <= -0.5 \
-                    and ind_1min.bid_vol > ind_1min.ask_vol and ind_10s.bid_vol > 10 * ind_10s.ask_vol \
-                        and ind_10s.vol > 1000:
-                    if buyin_more(okFuture, coin.name, time_type, latest_price + 0.01):
-                        lessmore = 1
-                        thread.start_new_thread(ensure_buyin_more, (okFuture, coin.name, time_type, latest_price,))
-                        buy_price = latest_price + 0.01
-                        info = u'发出做多信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                            f.writelines(info + '\n')
-
-                elif price_10s_change < 0 and price_1m_change < 0 and price_5m_change >= 0.5 \
-                        and ind_1min.ask_vol > ind_1min.bid_vol and ind_10s.ask_vol > 10 * ind_10s.bid_vol \
-                        and ind_10s.vol > 1000:
-                    if buyin_less(okFuture, coin.name, time_type, latest_price - 0.01):
-                        moreless = 1
-                        thread.start_new_thread(ensure_buyin_less, (okFuture, coin.name, time_type, latest_price,))
-                        buy_price = latest_price - 0.01
-                        info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
-                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                            f.writelines(info + '\n')
 
             price_info = deal_entity.type + u' now_price: %.4f, highest: %.4f, lowest: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
                                             u'5min_price: %.4f' \

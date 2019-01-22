@@ -85,20 +85,8 @@ def on_message(ws, message):
             price_1m_change = cal_rate(avg_3s_price, avg_min_price)
             price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
 
-            if price_1m_change <= -0.3 and price_3m_change <= -0.4 and ind_1min.ask_vol > 10 * ind_1min.bid_vol:
-                sell_id = sell_all_position(spotAPI, instrument_id, latest_price-0.001)
-                if sell_id:
-                    time.sleep(1)
-                    sell_order_info = spotAPI.get_order_info(sell_id, instrument_id)
-                    if sell_order_info['status'] == 'filled' or sell_order_info['status'] == 'part_filled':
-                        less = 1
-                        buy_price = sell_order_info['price']
-                        info = u'全部卖出！！！平均成交价格：' + buy_price + u', ' + now_time
-                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                            f.writelines(info + '\n')
-                    else:
-                        spotAPI.revoke_order_exception(instrument_id, sell_id)
-            elif ind_3m.vol > 500000 and ind_3m.ask_vol > ind_3m.bid_vol and price_3m_change < -0.4 and new_macd < 0:
+            if ind_3m.vol > 500000 and ind_3m.ask_vol > ind_3m.bid_vol \
+                    and ind_1min.vol > 300000 and ind_1min.ask_vol > ind_1min.bid_vol and price_3m_change < -0.4 and new_macd < 0:
                 sell_id = sell_all_position(spotAPI, instrument_id, latest_price - 0.001)
                 if sell_id:
                     time.sleep(1)
@@ -123,9 +111,14 @@ def on_message(ws, message):
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
                     else:
-                        spotAPI.revoke_order_exception(instrument_id, buy_id)
-                else:
-                    less = 0
+                        attempts = 5
+                        while attempts > 0:
+                            attempts -= 1
+                            spotAPI.revoke_order_exception(instrument_id, buy_id)
+                            time.sleep(1)
+                            order_info = spotAPI.get_order_info(buy_id, instrument_id)
+                            if order_info['status'] == 'cancelled':
+                                break
 
 
             price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \

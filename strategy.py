@@ -85,14 +85,14 @@ def get_macd(okFuture, symbol, contract_type, type1, size=None):
 
 def get_spot_macd(spotAPI, instrument_id, gap):
     data = spotAPI.get_kline(instrument_id, '', '', gap)[::-1]
-    df = pd.DataFrame(data=data, columns=['close', 'high', 'low', 'open', 'time', 'volume'])
+    df = pd.DataFrame(data=data, columns=['time', 'open', 'high', 'low', 'close', 'volume'])
     macd = calc_MACD(df, 7, 8, 3)
     return df
 
 
 def get_spot_boll(spotAPI, instrument_id, gap):
     data = spotAPI.get_kline(instrument_id, '', '', gap)[::-1]
-    df = pd.DataFrame(data=data, columns=['close', 'high', 'low', 'open', 'time', 'volume'])
+    df = pd.DataFrame(data=data, columns=['time', 'open', 'high', 'low', 'close', 'volume'])
     calc_boll(df, 26)
     return df
 
