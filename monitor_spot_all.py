@@ -7,7 +7,7 @@ except ImportError:
     import _thread as thread
 from utils import timestamp2string, cal_rate, inflate
 from trade import buyin_less, buyin_more, ensure_buyin_less, \
-    ensure_buyin_more, cancel_uncompleted_order, gen_orders_data, send_email
+    ensure_buyin_more, sell_more_batch, sell_less_batch, ensure_sell_more,ensure_sell_less
 from strategy import get_future_Nval, get_macd
 from entity import Coin, Indicator, DealEntity
 import time
@@ -171,9 +171,9 @@ def on_message(ws, message):
                 buy_available = ret["holding"][0]["buy_available"]
                 sell_available = ret["holding"][0]["sell_available"]
                 if buy_available > 0:
-                    thread.start_new_thread(ensure_sell_more, (coin.name, time_type,))
+                    thread.start_new_thread(ensure_sell_more, (okFuture, coin.name, time_type,))
                 if sell_available > 0:
-                    thread.start_new_thread(ensure_sell_less, (coin.name, time_type,))
+                    thread.start_new_thread(ensure_sell_less, (okFuture, coin.name, time_type,))
             else:
                 print("确认未持仓")
 
@@ -198,31 +198,31 @@ def on_message(ws, message):
 
             if lessless == 1:
                 if price_5m_change > 0 and new_macd > 0:
-                    if sell_less_batch(coin.name, time_type, latest_price):
+                    if sell_less_batch(okFuture, coin.name, time_type, latest_price):
                         lessless = 0
-                        thread.start_new_thread(ensure_sell_less, (coin.name, time_type,))
+                        thread.start_new_thread(ensure_sell_less, (okFuture, coin.name, time_type,))
                         info = u'做空止盈，盈利%.3f, time: %s' % (buy_price - latest_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
                 elif price_5m_change > 0 and latest_price > buy_price - 0.02:
-                    if sell_less_batch(coin.name, time_type, latest_price):
+                    if sell_less_batch(okFuture, coin.name, time_type, latest_price):
                         lessless = 0
-                        thread.start_new_thread(ensure_sell_less, (coin.name, time_type,))
+                        thread.start_new_thread(ensure_sell_less, (okFuture, coin.name, time_type,))
                         info = u'做空止损，盈利%.3f, time: %s' % (buy_price - latest_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
             elif moremore == 1:
                 if price_5m_change < 0 and new_macd < 0:
-                    if sell_more_batch(coin.name, time_type, latest_price):
+                    if sell_more_batch(okFuture, coin.name, time_type, latest_price):
                         moremore = 0
-                        thread.start_new_thread(ensure_sell_more, (coin.name, time_type,))
+                        thread.start_new_thread(ensure_sell_more, (okFuture, coin.name, time_type,))
                         info = u'做多止盈，盈利%.3f, time: %s' % (latest_price - buy_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
                 elif price_5m_change < 0 and latest_price < buy_price + 0.02:
-                    if sell_more_batch(coin.name, time_type, latest_price):
+                    if sell_more_batch(okFuture, coin.name, time_type, latest_price):
                         moremore = 0
-                        thread.start_new_thread(ensure_sell_more, (coin.name, time_type,))
+                        thread.start_new_thread(ensure_sell_more, (okFuture, coin.name, time_type,))
                         info = u'做多止损，盈利%.3f, time: %s' % (latest_price - buy_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
@@ -245,96 +245,6 @@ def on_message(ws, message):
                     write_lines = []
 
             print(price_info + '\r\n' + vol_info + '\r\n' + rate_info + u', ' + now_time)
-
-
-def sell_more_batch(coin_name, time_type, latest_price, lever_rate=20):
-    jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
-    print(jRet)
-    ret = u'没有做多订单'
-    while len(jRet["holding"]) > 0:
-        amount = jRet["holding"][0]["buy_available"]
-        order_data = gen_orders_data(latest_price, amount, 3, 5)
-        ret = okFuture.future_batchTrade(coin_name + "_usd", time_type, order_data, lever_rate)
-        if 'true' in ret:
-            break
-        else:
-            buy_available = jRet["holding"][0]["buy_available"]
-            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', buy_available, 3, 1, lever_rate)
-            if 'true' in ret:
-                break
-            else:
-                return False
-
-    return True
-
-
-def ensure_sell_more(coin_name, time_type, lever_rate=20):
-    sleep_time = 3
-    while sleep_time > 0:
-        time.sleep(sleep_time)
-        jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
-        if len(jRet["holding"]) > 0:
-            cancel_uncompleted_order(okFuture, coin_name, time_type)
-            time.sleep(1)
-            jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
-            buy_available = jRet["holding"][0]["buy_available"]
-            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', buy_available, 3, 1, lever_rate)
-            with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                f.writelines(ret + '\n')
-        else:
-            break
-    ts = time.time()
-    now_time = timestamp2string(ts)
-    info = u'做多卖出成功！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(latest_price - buy_price) \
-           + ', ' + now_time
-    thread.start_new_thread(send_email, (info,))
-    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-        f.writelines(info + '\n')
-
-
-def ensure_sell_less(coin_name, time_type, lever_rate=20):
-    sleep_time = 3
-    while sleep_time > 0:
-        time.sleep(sleep_time)
-        jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
-        if len(jRet["holding"]) > 0:
-            cancel_uncompleted_order(okFuture, coin_name, time_type)
-            time.sleep(1)
-            jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
-            sell_available = jRet["holding"][0]["sell_available"]
-            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', sell_available, 4, 1, lever_rate)
-            with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                f.writelines(ret + '\n')
-        else:
-            break
-    ts = time.time()
-    now_time = timestamp2string(ts)
-    info = u'做空卖出成功！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(buy_price - latest_price) \
-           + ', ' + now_time
-    thread.start_new_thread(send_email, (info,))
-    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-        f.writelines(info + '\n')
-
-
-def sell_less_batch(coin_name, time_type, latest_price, lever_rate=20):
-    jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
-    ret = u'没有做空订单'
-    while len(jRet["holding"]) > 0:
-        amount = jRet["holding"][0]["sell_available"]
-        order_data = gen_orders_data(latest_price, amount, 4, 5)
-        ret = okFuture.future_batchTrade(coin_name + "_usd", time_type, order_data, lever_rate)
-        if 'true' in ret:
-            break
-        else:
-            sell_available = jRet["holding"][0]["sell_available"]
-            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', sell_available, 4, 1, lever_rate)
-            if 'true' in ret:
-                break
-            else:
-                return False
-
-    return True
-
 
 
 def on_error(ws, error):

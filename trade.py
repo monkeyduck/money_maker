@@ -300,14 +300,12 @@ def sell_less(okFuture, coin_name, time_type, price=None, lever_rate=20):
     jRet = json.loads(okFuture.future_position_4fix(coin_name+"_usd", time_type, "1"))
 
     while len(jRet["holding"]) > 0:
-        print(jRet)
         cancel_uncompleted_order(okFuture, coin_name, time_type)
         sell_available = jRet["holding"][0]["sell_available"]
         if price:
             ret = okFuture.future_trade(coin_name+"_usd", time_type, price, sell_available, 4, 0, lever_rate)
         else:
             ret = okFuture.future_trade(coin_name+"_usd", time_type, '', sell_available, 4, 1, lever_rate)
-        print(ret)
         if 'true' in ret:
             time.sleep(2)
             jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
@@ -316,6 +314,77 @@ def sell_less(okFuture, coin_name, time_type, price=None, lever_rate=20):
                 % (coin_name, timestamp2string(time.time()), ret)
     thread.start_new_thread(send_email, (email_msg,))
     return True
+
+
+def sell_less_batch(okFuture, coin_name, time_type, latest_price, lever_rate=20):
+    jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
+    while len(jRet["holding"]) > 0:
+        amount = jRet["holding"][0]["sell_available"]
+        order_data = gen_orders_data(latest_price, amount, 4, 5)
+        ret = okFuture.future_batchTrade(coin_name + "_usd", time_type, order_data, lever_rate)
+        if 'true' in ret:
+            break
+        else:
+            sell_available = jRet["holding"][0]["sell_available"]
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', sell_available, 4, 1, lever_rate)
+            if 'true' in ret:
+                break
+            else:
+                return False
+
+    return True
+
+
+def sell_more_batch(okFuture, coin_name, time_type, latest_price, lever_rate=20):
+    jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
+    print(jRet)
+    while len(jRet["holding"]) > 0:
+        amount = jRet["holding"][0]["buy_available"]
+        order_data = gen_orders_data(latest_price, amount, 3, 5)
+        ret = okFuture.future_batchTrade(coin_name + "_usd", time_type, order_data, lever_rate)
+        if 'true' in ret:
+            break
+        else:
+            buy_available = jRet["holding"][0]["buy_available"]
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', buy_available, 3, 1, lever_rate)
+            if 'true' in ret:
+                break
+            else:
+                return False
+
+    return True
+
+
+def ensure_sell_more(okFuture, coin_name, time_type, lever_rate=20):
+    sleep_time = 3
+    while sleep_time > 0:
+        time.sleep(sleep_time)
+        jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
+        if len(jRet["holding"]) > 0:
+            cancel_uncompleted_order(okFuture, coin_name, time_type)
+            time.sleep(1)
+            jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
+            buy_available = jRet["holding"][0]["buy_available"]
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', buy_available, 3, 1, lever_rate)
+
+        else:
+            break
+
+
+def ensure_sell_less(okFuture, coin_name, time_type, lever_rate=20):
+    sleep_time = 3
+    while sleep_time > 0:
+        time.sleep(sleep_time)
+        jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
+        if len(jRet["holding"]) > 0:
+            cancel_uncompleted_order(okFuture, coin_name, time_type)
+            time.sleep(1)
+            jRet = json.loads(okFuture.future_position_4fix(coin_name + "_usd", time_type, "1"))
+            sell_available = jRet["holding"][0]["sell_available"]
+            ret = okFuture.future_trade(coin_name + "_usd", time_type, '', sell_available, 4, 1, lever_rate)
+
+        else:
+            break
 
 
 def sell_less_price(okFuture, coin_name, time_type, price, lever_rate=20):

@@ -7,6 +7,7 @@ except ImportError:
     import _thread as thread
 from utils import timestamp2string, cal_rate, inflate, string2timestamp
 from trade_spot_v3 import buy_all_position, sell_all_position
+from trade import buyin_less, ensure_buyin_less, sell_less_batch, ensure_sell_less, sell_less
 from entity import Coin, Indicator, DealEntity
 from strategy import get_spot_macd
 import time
@@ -27,7 +28,9 @@ ind_10s = Indicator(10)
 ind_3s = Indicator(1)
 ind_3m = Indicator(180)
 less = 0
+lessless = 0
 last_3min_macd_ts = 0
+time_type = "quarter"
 
 last_avg_price = 0
 buy_price = 0
@@ -54,7 +57,7 @@ def on_message(ws, message):
     if 'pong' in message or 'addChannel' in message:
         return
     global latest_price, last_avg_price, buy_price, less, deque_3s, deque_10s, deque_min, \
-        deque_3m, ind_3s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, new_macd
+        deque_3m, ind_3s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, new_macd, lessless
     jmessage = json.loads(message)
 
     ts = time.time()
@@ -87,6 +90,14 @@ def on_message(ws, message):
 
             if ind_3m.vol > 500000 and ind_3m.ask_vol > ind_3m.bid_vol \
                     and ind_1min.vol > 300000 and ind_1min.ask_vol > ind_1min.bid_vol and price_3m_change < -0.4 and new_macd < 0:
+                if buyin_less(okFuture, coin.name, time_type, latest_price, amount=None, lever_rate=20, taker=True):
+                    lessless = 1
+                    thread.start_new_thread(ensure_buyin_less, (okFuture, coin.name, time_type, latest_price,))
+                    buy_price = latest_price - 0.01
+                    info = u'发出做空信号！！！买入价格：' + str(buy_price) + u', ' + now_time
+                    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                        f.writelines(info + '\n')
+
                 sell_id = sell_all_position(spotAPI, instrument_id, latest_price - 0.001)
                 if sell_id:
                     time.sleep(1)
@@ -99,7 +110,16 @@ def on_message(ws, message):
                             f.writelines(info + '\n')
                     else:
                         spotAPI.revoke_order_exception(instrument_id, sell_id)
-            elif less == 1 and price_3m_change > 0 and new_macd > 0:
+
+            if lessless == 1 and price_3m_change > 0 and new_macd > 0:
+                if sell_less(okFuture, coin.name, time_type):
+                    lessless = 0
+                    thread.start_new_thread(ensure_sell_less, (okFuture, coin.name, time_type,))
+                    info = u'做空止盈，盈利%.3f, time: %s' % (buy_price - latest_price, now_time)
+                    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                        f.writelines(info + '\n')
+
+            if less == 1 and price_3m_change > 0 and new_macd > 0:
                 buy_id = buy_all_position(spotAPI, instrument_id, latest_price)
                 if buy_id:
                     time.sleep(3)
@@ -119,6 +139,9 @@ def on_message(ws, message):
                             order_info = spotAPI.get_order_info(buy_id, instrument_id)
                             if order_info['status'] == 'cancelled':
                                 break
+                else:
+                    less = 0
+
 
 
             price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
@@ -163,11 +186,11 @@ if __name__ == '__main__':
         file_transaction, file_deal = coin.gen_file_name()
         config_file = sys.argv[2]
         if config_file == 'config_mother':
-            from config_mother import spotAPI
+            from config_mother import spotAPI, okFuture
         elif config_file == 'config_son1':
-            from config_son1 import spotAPI
+            from config_son1 import spotAPI, okFuture
         elif config_file == 'config_son3':
-            from config_son3 import spotAPI
+            from config_son3 import spotAPI, okFuture
         else:
             print('输入config_file有误，请输入config_mother or config_son1 or config_son3')
             sys.exit()
