@@ -94,9 +94,7 @@ def on_message(ws, message):
             price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
 
             # 做空
-            if lessless == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol \
-                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.3 * ind_1min.bid_vol and -1.5 < price_1m_change < -0.2 \
-                    and price_3m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
+            if price_3m_change < 0 and price_10s_change <= 0 and new_macd < 0 and lessless == 0:
                 if buyin_less(futureAPI, coin.name, future_instrument_id, latest_price, amount=None, lever_rate=20, taker=True):
                     lessless = 1
                     future_buy_time = int(ts)
@@ -106,9 +104,7 @@ def on_message(ws, message):
                     info = u'发出做空信号！！买入时间： ' + now_time
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
-            if less == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol \
-                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.3 * ind_1min.bid_vol and -1.5 < price_1m_change < -0.2 \
-                    and price_3m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
+
                 sell_id = sell_all_position(spotAPI, instrument_id, latest_price - 0.001)
                 if sell_id:
                     spot_buy_time = int(ts)
@@ -116,7 +112,7 @@ def on_message(ws, message):
                     sell_order_info = spotAPI.get_order_info(sell_id, instrument_id)
                     if sell_order_info['status'] == 'filled' or sell_order_info['status'] == 'part_filled':
                         less = 1
-                        spot_buy_price = float(sell_order_info['price'])
+                        spot_buy_price = sell_order_info['price']
                         info = u'现货全部卖出！！！平均成交价格：' + spot_buy_price + u', ' + now_time
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
@@ -165,7 +161,7 @@ def on_message(ws, message):
                         if order_info['status'] == 'filled':
                             less = 0
                             buy_price = order_info['price']
-                            info = u'macd > 0, 买入现货止盈！！！买入价格：' + str(buy_price) + u', ' + now_time
+                            info = u'全部买入！！！买入价格：' + str(buy_price) + u', ' + now_time
                             with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                                 f.writelines(info + '\n')
                         else:
@@ -189,7 +185,7 @@ def on_message(ws, message):
                             if order_info['status'] == 'filled':
                                 less = 0
                                 buy_price = order_info['price']
-                                info = u'最新价高于卖出价，买入现货止损！！！买入价格：' + str(buy_price) + u', ' + now_time
+                                info = u'全部买入！！！买入价格：' + str(buy_price) + u', ' + now_time
                                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                                     f.writelines(info + '\n')
                             else:
@@ -203,7 +199,6 @@ def on_message(ws, message):
                                         break
                         else:
                             less = 0
-
             holding_status = 'future_less: %d, spot_less: %d' % (lessless, less)
             price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
                                             u'3min_price: %.4f' \

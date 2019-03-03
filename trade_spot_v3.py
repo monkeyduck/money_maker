@@ -56,7 +56,10 @@ def sell_all_position(spotAPI, instrument_id, sell_price):
     coin = instrument_id.split('_')[0]
     coin_account = spotAPI.get_coin_account_info(coin)
     coin_available = float(coin_account['available'])
-    return spot_sell(spotAPI, instrument_id, coin_available, sell_price)
+    if coin_available > 1:
+        return spot_sell(spotAPI, instrument_id, coin_available, sell_price)
+    else:
+        return False
 
 
 
