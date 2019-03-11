@@ -6,9 +6,8 @@ try:
 except ImportError:
     import _thread as thread
 from utils import timestamp2string, cal_rate, inflate, string2timestamp
-from trade_spot_v3 import buy_all_position, sell_all_position
+from trade_spot_v3 import buy_all_position, sell_all_position, spot_buy
 from trade_v3 import  buyin_less, sell_less, ensure_buyin_less, ensure_sell_less
-# from trade import buyin_less, ensure_buyin_less, sell_less_batch, ensure_sell_less, sell_less
 from entity import Coin, Indicator, DealEntity
 from strategy import get_spot_macd
 import time
@@ -18,6 +17,7 @@ from collections import deque
 import websocket
 import codecs
 import sys
+import math
 
 deque_min = deque()
 deque_10s = deque()
@@ -26,7 +26,7 @@ deque_3m = deque()
 latest_price = 0
 ind_1min = Indicator(60)
 ind_10s = Indicator(10)
-ind_3s = Indicator(1)
+ind_1s = Indicator(1)
 ind_3m = Indicator(180)
 less = 0
 lessless = 0
@@ -60,8 +60,9 @@ def on_message(ws, message):
     message = bytes.decode(inflate(message), 'utf-8')  # data decompress
     if 'pong' in message or 'addChannel' in message:
         return
-    global latest_price, last_avg_price, spot_buy_price, less, deque_3s, deque_10s, deque_min, future_buy_price,\
-        deque_3m, ind_3s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, new_macd, lessless,future_buy_time, spot_buy_time
+    global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, future_buy_price,\
+        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, new_macd, lessless,\
+        future_buy_time, spot_buy_time, spot_sell_price, spot_buy_price
     jmessage = json.loads(message)
 
     ts = time.time()
@@ -80,12 +81,12 @@ def on_message(ws, message):
             latest_price = float(jdata[1])
             deal_entity = DealEntity(jdata[0], float(jdata[1]), round(float(jdata[2]), 3), ts, jdata[4])
 
-            handle_deque(deque_3s, deal_entity, ts, ind_3s)
+            handle_deque(deque_3s, deal_entity, ts, ind_1s)
             handle_deque(deque_10s, deal_entity, ts, ind_10s)
             handle_deque(deque_min, deal_entity, ts, ind_1min)
             handle_deque(deque_3m, deal_entity, ts, ind_3m)
 
-            avg_3s_price = ind_3s.cal_avg_price()
+            avg_3s_price = ind_1s.cal_avg_price()
             avg_10s_price = ind_10s.cal_avg_price()
             avg_min_price = ind_1min.cal_avg_price()
             avg_3m_price = ind_3m.cal_avg_price()
@@ -95,20 +96,23 @@ def on_message(ws, message):
 
             # 做空
             if lessless == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol \
-                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.3 * ind_1min.bid_vol and -1.5 < price_1m_change < -0.2 \
-                    and price_3m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
-                if buyin_less(futureAPI, coin.name, future_instrument_id, latest_price, amount=None, lever_rate=20, taker=True):
+                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol and -1.2 < price_1m_change \
+                    and price_3m_change < price_1m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
+                future_buyin_less_order_id = buyin_less(
+                    futureAPI, coin.name, future_instrument_id, latest_price, amount=None, lever_rate=20, taker=True)
+                if future_buyin_less_order_id:
                     lessless = 1
                     future_buy_time = int(ts)
-                    thread.start_new_thread(ensure_buyin_less, (futureAPI, coin.name, future_instrument_id, latest_price,))
+                    thread.start_new_thread(ensure_buyin_less,
+                                            (futureAPI, coin.name, future_instrument_id, latest_price, future_buyin_less_order_id,))
                     future_buy_price = latest_price - 0.01
 
                     info = u'发出做空信号！！买入时间： ' + now_time
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
             if less == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol \
-                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.3 * ind_1min.bid_vol and -1.5 < price_1m_change < -0.2 \
-                    and price_3m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
+                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol and -1.2 < price_1m_change \
+                    and price_3m_change < price_1m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
                 sell_id = sell_all_position(spotAPI, instrument_id, latest_price - 0.001)
                 if sell_id:
                     spot_buy_time = int(ts)
@@ -116,80 +120,52 @@ def on_message(ws, message):
                     sell_order_info = spotAPI.get_order_info(sell_id, instrument_id)
                     if sell_order_info['status'] == 'filled' or sell_order_info['status'] == 'part_filled':
                         less = 1
-                        spot_buy_price = float(sell_order_info['price'])
-                        info = u'现货全部卖出！！！平均成交价格：' + spot_buy_price + u', ' + now_time
+                        spot_sell_price = float(sell_order_info['price'])
+                        info = u'现货全部卖出！！！平均成交价格：' + spot_sell_price + u', ' + now_time
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
                     else:
                         spotAPI.revoke_order_exception(instrument_id, sell_id)
 
             if lessless == 1:
-                if price_3m_change > 0 and new_macd > 0:
+                if price_1m_change > 0 and new_macd > 0:
                     if sell_less(futureAPI, future_instrument_id):
                         lessless = 0
                         thread.start_new_thread(ensure_sell_less, (futureAPI, coin.name, future_instrument_id,latest_price, future_buy_price))
                         info = u'做空止盈，盈利%.3f, time: %s' % (future_buy_price - latest_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
-                elif int(ts) - future_buy_time > 60:
-                    future_buy_time = int(ts)
-                    holding_position = futureAPI.get_specific_position(future_instrument_id)
-                    if len(holding_position["holding"]) > 0:
-                        profit = float(holding_position["holding"][0]["short_pnl_ratio"])
-                        if profit < 0 < price_1m_change:
-                            if sell_less(futureAPI, future_instrument_id):
-                                lessless = 0
-                                thread.start_new_thread(ensure_sell_less, (
-                                    futureAPI, coin.name, future_instrument_id, latest_price, future_buy_price))
-                                info = u'做空止损，亏损%.2f%%, time: %s' % (profit * 100, now_time)
-                                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                    f.writelines(info + '\n')
-                        elif profit < -0.1:
-                            if sell_less(futureAPI, future_instrument_id):
-                                lessless = 0
-                                thread.start_new_thread(ensure_sell_less, (
-                                    futureAPI, coin.name, future_instrument_id, latest_price, future_buy_price))
-                                info = u'做空止损，亏损%.2f%%, time: %s' % (profit * 100, now_time)
-                                with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                                    f.writelines(info + '\n')
-                    else:
-                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                            f.writelines('holding error: lessless == 1 but not hold future\n')
-                        lessless = 0
-            if less == 1:
-                if price_3m_change > 0 and new_macd > 0:
-                    buy_id = buy_all_position(spotAPI, instrument_id, latest_price)
-                    if buy_id:
-                        time.sleep(3)
-                        order_info = spotAPI.get_order_info(buy_id, instrument_id)
-                        if order_info['status'] == 'filled':
-                            less = 0
-                            buy_price = order_info['price']
-                            info = u'macd > 0, 买入现货止盈！！！买入价格：' + str(buy_price) + u', ' + now_time
+                elif int(ts) - future_buy_time >= 60:
+                    if latest_price > spot_sell_price and price_3m_change >= 0 and price_1m_change >= 0 and price_10s_change >= 0:
+                        if sell_less(futureAPI, future_instrument_id):
+                            lessless = 0
+                            thread.start_new_thread(ensure_sell_less, (
+                                futureAPI, coin.name, future_instrument_id, latest_price, future_buy_price))
+                            info = u'做空止损，亏损%.2f, time: %s' % ((latest_price - spot_buy_price), now_time)
                             with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                                 f.writelines(info + '\n')
-                        else:
-                            attempts = 5
-                            while attempts > 0:
-                                attempts -= 1
-                                spotAPI.revoke_order_exception(instrument_id, buy_id)
-                                time.sleep(1)
-                                order_info = spotAPI.get_order_info(buy_id, instrument_id)
-                                if order_info['status'] == 'cancelled':
-                                    break
-                    else:
-                        less = 0
-
-                if int(ts) - spot_buy_time > 60:
-                    if latest_price > spot_buy_price and price_1m_change > 0:
-                        buy_id = buy_all_position(spotAPI, instrument_id, latest_price)
+                    elif latest_price > spot_sell_price * 1.01:
+                        if sell_less(futureAPI, future_instrument_id):
+                            lessless = 0
+                            thread.start_new_thread(ensure_sell_less, (
+                                futureAPI, coin.name, future_instrument_id, latest_price, future_buy_price))
+                            info = u'做空止损，亏损%.2f, time: %s' % ((latest_price - spot_sell_price), now_time)
+                            with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                                f.writelines(info + '\n')
+            if less == 1:
+                if price_1m_change > 0 and new_macd > 0:
+                    usdt_account = spotAPI.get_coin_account_info("usdt")
+                    usdt_available = float(usdt_account['available'])
+                    amount = math.floor(usdt_available / latest_price)
+                    if amount > 0:
+                        buy_id = spot_buy(spotAPI, instrument_id, amount, latest_price)
                         if buy_id:
                             time.sleep(3)
                             order_info = spotAPI.get_order_info(buy_id, instrument_id)
                             if order_info['status'] == 'filled':
                                 less = 0
-                                buy_price = order_info['price']
-                                info = u'最新价高于卖出价，买入现货止损！！！买入价格：' + str(buy_price) + u', ' + now_time
+                                spot_buy_price = order_info['price']
+                                info = u'macd > 0, 买入现货止盈！！！买入价格：' + str(spot_buy_price) + u', ' + now_time
                                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                                     f.writelines(info + '\n')
                             else:
@@ -201,6 +177,34 @@ def on_message(ws, message):
                                     order_info = spotAPI.get_order_info(buy_id, instrument_id)
                                     if order_info['status'] == 'cancelled':
                                         break
+                    else:
+                        less = 0
+
+                if int(ts) - spot_buy_time > 60:
+                    if latest_price > spot_sell_price and price_1m_change > 0 and price_3m_change > 0:
+                        usdt_account = spotAPI.get_coin_account_info("usdt")
+                        usdt_available = float(usdt_account['available'])
+                        amount = math.floor(usdt_available / latest_price)
+                        if amount > 0:
+                            buy_id = spot_buy(spotAPI, instrument_id, amount, latest_price)
+                            if buy_id:
+                                time.sleep(3)
+                                order_info = spotAPI.get_order_info(buy_id, instrument_id)
+                                if order_info['status'] == 'filled':
+                                    less = 0
+                                    apot_buy_price = order_info['price']
+                                    info = u'macd > 0, 买入现货止盈！！！买入价格：' + str(apot_buy_price) + u', ' + now_time
+                                    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                                        f.writelines(info + '\n')
+                                else:
+                                    attempts = 5
+                                    while attempts > 0:
+                                        attempts -= 1
+                                        spotAPI.revoke_order_exception(instrument_id, buy_id)
+                                        time.sleep(1)
+                                        order_info = spotAPI.get_order_info(buy_id, instrument_id)
+                                        if order_info['status'] == 'cancelled':
+                                            break
                         else:
                             less = 0
 
@@ -210,8 +214,8 @@ def on_message(ws, message):
                          % (latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_3m_price)
             vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f, ' \
                        u'3s_ask_vol: %.3f, 3s_bid_vol: %.3f, 3min vol: %.3f, 3min_ask_vol: %.3f, 3min_bid_vol: %.3f' \
-                       % (deal_entity.amount, ind_3s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
-                          ind_3s.ask_vol, ind_3s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
+                       % (deal_entity.amount, ind_1s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
+                          ind_1s.ask_vol, ind_1s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
             rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 3min_rate: %.2f%%, new_macd: %.6f' \
                         % (price_10s_change, price_1m_change, price_3m_change, new_macd)
             write_info = holding_status + u', ' + price_info + u', ' + vol_info + u', ' + rate_info + u', ' + now_time + '\r\n'

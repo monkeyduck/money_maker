@@ -182,7 +182,7 @@ def cancel_uncompleted_order(futureAPI, coin_name, time_type, order_type=0):
     order_id_list = acquire_orderId_by_type(futureAPI, time_type, order_type)
     if len(order_id_list) > 0:
         ret = futureAPI.revoke_orders(time_type, order_id_list)
-        log_trade_v3(ret)
+        log_trade_v3("In cancel_uncompleted_order func, revoke result: %s" % ret)
         if ret and ret['result']:
             return True
         else:
@@ -208,26 +208,30 @@ def ensure_buyin_more(futureAPI, coin_name, time_type, price):
         return
 
 
-def ensure_buyin_less(futureAPI, coin_name, time_type, buy_price, lever_rate=20):
+def ensure_buyin_less(futureAPI, coin_name, time_type, buy_price, order_id, lever_rate=20):
+    now_time = timestamp2string(time.time())
     try:
         retry = 3
         while retry > 0:
             time.sleep(2)
             retry -= 1
-            cancel_uncompleted_order(futureAPI, coin_name, time_type, 2)
+            if order_id:
+                futureAPI.revoke_order(time_type, order_id)
+            else:
+                cancel_uncompleted_order(futureAPI, coin_name, time_type, 2)
             time.sleep(1)
             coin_account = futureAPI.get_coin_account(coin_name)
             balance = float(coin_account['total_avail_balance'])
             # 撤销所有未完成挂单后，若balance<1则认为已全仓买入
             if balance < 1:
                 return
-            amount = math.floor(balance * lever_rate * (buy_price - 0.1) / 10 * 0.95)
+            amount = math.floor(balance * lever_rate * buy_price / 10 * 0.95)
             if not buyin_less_batch(futureAPI, coin_name, time_type, buy_price, 20, amount):
                 break
         time.sleep(5)
         cancel_uncompleted_order(futureAPI, coin_name, time_type, 2)
     except Exception as e:
-        log_trade_v3("In ensure_buyin_less function, error: %s" % repr(e))
+        log_trade_v3("In ensure_buyin_less function, error: %s, time: %s" % (traceback.format_exc(), now_time))
         return
 
 
@@ -305,7 +309,7 @@ def buyin_more_batch(futureAPI, coin_name, time_type, latest_price, lever_rate=2
                             % (coin_name, latest_price, amount, now_time, ret)
                 thread.start_new_thread(send_email, (email_msg,))
                 return True
-            amount *= math.floor(amount * 0.95)
+            amount = math.floor(amount * 0.95)
         return False
     except Exception as e:
         log_trade_v3("In future buyin_more_batch function, error: %s, time: %s" % (repr(e), now_time))
@@ -323,7 +327,7 @@ def buyin_less_batch(futureAPI, coin_name, time_type, buy_price, lever_rate=20, 
                 log_trade_v3(
                     'In future buyin_less_batch function, %s balance less than 1, balance: %.2f' % (coin_name, balance))
                 return False
-            amount = math.floor(balance * lever_rate * (buy_price - 0.1) / 10 * 0.95)
+            amount = math.floor(balance * lever_rate * buy_price / 10 * 0.95)
         while amount >= 5:
             order_data = gen_orders_data(buy_price, amount, 2, 5)
             ret = futureAPI.take_orders(time_type, order_data, lever_rate)
@@ -332,7 +336,7 @@ def buyin_less_batch(futureAPI, coin_name, time_type, buy_price, lever_rate=20, 
                             % (coin_name, buy_price, amount, now_time, ret)
                 thread.start_new_thread(send_email, (email_msg,))
                 return True
-            amount *= math.floor(amount * 0.95)
+            amount = math.floor(amount * 0.95)
         return False
     except Exception as e:
         log_trade_v3("In future buyin_less_batch func, error info: %s, time: %s" % (repr(e), now_time))

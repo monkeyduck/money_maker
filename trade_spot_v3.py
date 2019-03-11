@@ -1,15 +1,28 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
-import json
 import math
 from utils import send_email,timestamp2string, string2timestamp
+import os
 import time
 import codecs
+import traceback
+from config_mother import spotAPI
+from strategy import get_spot_macd
+from entity import Coin
 try:
     import thread
 except ImportError:
     import _thread as thread
+
+
+trade_log_path = os.getcwd() + '/trade_v3.log'
+
+
+def log_trade_v3(log):
+    print(log)
+    with codecs.open(trade_log_path, 'a+', 'utf-8') as f:
+        f.writelines(log + '\r\n')
 
 
 def spot_buy(spotAPI, instrument_id, amount, price):
@@ -21,8 +34,8 @@ def spot_buy(spotAPI, instrument_id, amount, price):
                 return ret["order_id"]
         return False
     except Exception as e:
-        print(repr(e))
-        return False
+        log_trade_v3("In spot_buy func, error: %s, time: %s" % (traceback.format_exc(), timestamp2string(time.time())))
+        return "spot_buy_exception"
 
 
 def spot_sell(spotAPI, instrument_id, amount, price):
@@ -44,11 +57,7 @@ def spot_revoke(spotAPI, instrument_id, order_id):
 
 
 def buy_all_position(spotAPI, instrument_id, buy_price):
-    usdt_account = spotAPI.get_coin_account_info("usdt")
-    usdt_available = float(usdt_account['available'])
-    amount = float(usdt_available / buy_price)
-    if amount > 0:
-        return spot_buy(spotAPI, instrument_id, amount, buy_price)
+
     return False
 
 
@@ -60,7 +69,6 @@ def sell_all_position(spotAPI, instrument_id, sell_price):
         return spot_sell(spotAPI, instrument_id, coin_available, sell_price)
     else:
         return False
-
 
 
 def stat_deal_detail():
@@ -105,15 +113,14 @@ def stat_deal_detail():
 
 
 if __name__ == '__main__':
-
-    from config_avg import spotAPI
-
-    instrument_id = "eos_usdt"
-    ret = spotAPI.get_kline(instrument_id, '', '', 60)
-    print(ret)
-    print(ret[5])
-    # ret = spotAPI.get_specific_ticker(instrument_id)
-    # print(ret)
+    coin = Coin("eos", "usdt")
+    instrument_id = coin.get_instrument_id()
+    df = get_spot_macd(spotAPI, instrument_id, 300)
+    diff = list(df['diff'])
+    dea = list(df['dea'])
+    time = list(df['time'])
+    for i in range(1,10):
+        print('time: ' + str(time[-1 * i]) + ", diff: " + str(diff[-1 * i]) + ", macd: " + str(2 * (diff[-1 * i] - dea[-1 * i])))
 
 
 
