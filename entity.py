@@ -52,7 +52,7 @@ class Coin:
         return self.name + "_" + self.refer
 
     def get_future_instrument_id(self):
-        return self.name.upper() + "-USD-190329"
+        return self.name.upper() + "-USD-190628"
 
     def process_entity(self, entity, now_time_second):
         self.handle_deque(self.deque_3s, entity, now_time_second, self.ind_3s)
