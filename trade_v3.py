@@ -15,7 +15,7 @@ except ImportError:
     import _thread as thread
 
 
-batch_size = 1200
+batch_size = 400
 trade_log_path = os.getcwd() + '/trade_v3.log'
 BUY_MORE_TYPE = 1
 BUY_LESS_TYPE = 2
@@ -122,7 +122,7 @@ def buyin_less_turn(future_api, coin_name, time_type, buy_price, amount=None, le
             else:
                 ret = future_api.take_order('', time_type, BUY_LESS_TYPE, buy_price, amount, 0, lever_rate)
 
-            log_trade_v3('In future_buyin_less funciton: %s, time: %s' % (ret, now_time))
+            log_trade_v3('In future_buyin_less_turn funciton: %s, time: %s' % (ret, now_time))
 
             if ret and ret['result']:
                 email_msg = "下单做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
