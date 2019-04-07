@@ -37,6 +37,12 @@ new_macd = 0
 
 write_lines = []
 
+less_more = 0
+reversed_macd = False
+less_more_macd = 0
+less_more_buy_time = 0
+less_more_buy_price = 0
+
 
 def handle_deque(deq, entity, ts, ind):
     while len(deq) > 0:
@@ -54,35 +60,33 @@ def handle_deque(deq, entity, ts, ind):
 def check_sell_more(time_ts, price_10s_change, price_1m_change, price_3m_change):
     if price_1m_change < 0 and new_macd < 0:
         return 1
-    elif int(time_ts) - future_buy_time >= 60:
-        if price_1m_change <= -0.2 and price_3m_change <= 0 \
-                and latest_price <= 1.03 * future_buy_price:
-            return 2
-        elif latest_price < future_buy_price and price_3m_change <= 0 and price_1m_change <= 0 and price_10s_change <= 0:
-            return 3
-        elif latest_price < future_buy_price * 0.99:
-            return 4
-        elif price_1m_change <= -0.4:
-            return 5
-        elif latest_price > 1.1 * future_buy_price:
-            return 6
+    elif int(time_ts) - future_buy_time >= 60 and price_1m_change <= -0.2 \
+            and latest_price <= 1.03 * future_buy_price:
+        return 2
+    elif int(time_ts) - future_buy_time >= 60 and latest_price < future_buy_price \
+            and price_3m_change <=0 and price_1m_change <= 0 and price_10s_change <= 0:
+        return 3
+    elif latest_price < future_buy_price * 0.99:
+        return 4
+    elif price_1m_change <= -0.4:
+        return 5
+    elif latest_price > 1.1 * future_buy_price:
+        return 6
     return 0
 
 
 def check_sell_less(time_ts, price_10s_change, price_1m_change, price_3m_change):
     if price_1m_change > 0 and new_macd > 0:
         return 1
-    elif int(time_ts) - future_buy_time >= 60:
-        if price_1m_change >= 0.2 and latest_price > 0.98 * future_buy_price:
-            return 2
-        elif latest_price > future_buy_price and price_3m_change >= 0 and price_1m_change >= 0 and price_10s_change >= 0:
-            return 3
-        elif latest_price > future_buy_price * 1.01:
-            return 4
-        elif price_1m_change >= 0.4:
-            return 5
-        elif latest_price < 0.9 * future_buy_price:
-            return 6
+    elif int(time_ts) - future_buy_time >= 60 and price_1m_change >= 0.2 and latest_price > 0.98 * future_buy_price:
+        return 2
+    elif int(time_ts) - future_buy_time >= 60 and latest_price > future_buy_price \
+            and price_3m_change >= 0 and price_1m_change >= 0 and price_10s_change >= 0:
+        return 3
+    elif latest_price > future_buy_price * 1.01:
+        return 4
+    elif latest_price < 0.9 * future_buy_price:
+        return 6
     return 0
 
 
@@ -91,7 +95,8 @@ def on_message(ws, message):
     if 'pong' in message or 'addChannel' in message:
         return
     global latest_price, deque_3s, deque_10s, deque_min, future_less, future_more, new_macd, \
-        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, future_buy_price, future_buy_time
+        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, future_buy_price, future_buy_time, \
+        less_more, reversed_macd, less_more_macd, less_more_buy_time, less_more_buy_price
     jmessage = json.loads(message)
 
     ts = time.time()
@@ -124,8 +129,8 @@ def on_message(ws, message):
             price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
 
             # 做空
-            if future_less == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol \
-                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol and -1.2 < price_1m_change \
+            if future_less == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.2 * ind_3m.bid_vol \
+                    and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.3 * ind_1min.bid_vol and -1.2 < price_1m_change \
                     and price_3m_change < price_1m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
                 latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
                 if not latest_future_price:
@@ -144,8 +149,8 @@ def on_message(ws, message):
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
 
-            elif future_more == 0 and ind_3m.vol > 500000 and ind_3m.bid_vol > 1.3 * ind_3m.ask_vol \
-                    and ind_1min.vol > 300000 and ind_1min.bid_vol > 1.5 * ind_1min.ask_vol \
+            elif future_more == 0 and ind_3m.vol > 500000 and ind_3m.bid_vol > 1.2 * ind_3m.ask_vol \
+                    and ind_1min.vol > 300000 and ind_1min.bid_vol > 1.3 * ind_1min.ask_vol \
                     and price_3m_change > price_1m_change > 0.3 and price_10s_change >= 0.05 and new_macd > 0:
                 latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
                 if not latest_future_price:
@@ -161,6 +166,19 @@ def on_message(ws, message):
                     info = u'发出做多信号！！买入时间： ' + timestamp2string(future_buy_time)
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
+            elif less_more == 1:
+                if not reversed_macd:
+                    reversed_macd = (less_more_macd < 0 < new_macd)
+                if (latest_price < less_more_buy_price and int(ts) > less_more_buy_time + 30) \
+                        or (less_more_macd > 0 > new_macd) \
+                        or (less_more_macd < 0 and new_macd < 0 and reversed_macd):
+                    if sell_more(futureAPI, future_instrument_id):
+                        less_more = 0
+                        thread.start_new_thread(ensure_sell_more, (
+                            futureAPI, coin.name, future_instrument_id, latest_price, less_more_buy_price))
+                        info = u'做空做多卖出，盈利: %.2f, time: %s' % ((latest_price - less_more_buy_price), now_time)
+                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                            f.writelines(info + '\n')
 
             elif future_less == 1:
                 sell_less_check_status_code = check_sell_less(ts, price_10s_change, price_1m_change, price_10s_change)
@@ -172,6 +190,26 @@ def on_message(ws, message):
                         info = u'做空卖出，盈利: %.2f, time: %s' % ((future_buy_price - latest_price), now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
+
+                        # 做空卖出后立刻做多
+                        latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
+                        if not latest_future_price:
+                            latest_future_price = latest_price
+                        future_buyin_more_order_id = buyin_more(futureAPI, coin.name, future_instrument_id,
+                                                                latest_future_price, amount=None, lever_rate=20,
+                                                                taker=True)
+                        if future_buyin_more_order_id:
+                            less_more = 1
+                            reversed_macd = (new_macd > 0)
+                            less_more_macd = new_macd
+                            less_more_buy_time = int(ts)
+                            less_more_buy_price = latest_price
+                            thread.start_new_thread(ensure_buyin_more, (futureAPI, coin.name, future_instrument_id,
+                                                                        latest_future_price,
+                                                                        future_buyin_more_order_id,))
+                            info = u'发出做多信号！！买入时间： ' + timestamp2string(future_buy_time)
+                            with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+                                f.writelines(info + '\n')
             elif future_more == 1:
                 sell_more_check_status_code = check_sell_more(ts, price_10s_change, price_1m_change, price_10s_change)
                 if sell_more_check_status_code > 0:

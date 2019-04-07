@@ -24,9 +24,10 @@ SELL_LESS_TYPE = 4
 
 
 def log_trade_v3(log):
-    print(log)
+    format_log = timestamp2string(time.time()) + " " + log
+    print(format_log)
     with codecs.open(trade_log_path, 'a+', 'utf-8') as f:
-        f.writelines(log + '\r\n')
+        f.writelines(format_log + '\r\n')
 
 
 def gen_orders_data(price, amount, trade_type, num):
@@ -38,8 +39,6 @@ def gen_orders_data(price, amount, trade_type, num):
 
 
 def buyin_more(future_api, coin_name, time_type, buy_price, amount=None, lever_rate=20, taker=True):
-    ts = time.time()
-    now_time = timestamp2string(ts)
     try:
         coin_account = future_api.get_coin_account(coin_name)
         balance = float(coin_account['equity'])
@@ -56,11 +55,11 @@ def buyin_more(future_api, coin_name, time_type, buy_price, amount=None, lever_r
             else:
                 ret = future_api.take_order('', time_type, BUY_MORE_TYPE, buy_price, amount, 0, lever_rate)
 
-            log_trade_v3('In future_buyin_more function: %s, time: %s' % (ret, now_time))
+            log_trade_v3('In future_buyin_more function: %s' % ret)
 
             if ret and ret['result']:
-                email_msg = "下单做多%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
-                            % (coin_name, buy_price, amount, now_time, ret)
+                email_msg = "下单做多%s成功，最新价格: %.4f, 成交张数: %d, 成交结果: %s" \
+                            % (coin_name, buy_price, amount, ret)
                 thread.start_new_thread(send_email, (email_msg,))
                 return ret["order_id"]
         else:
@@ -72,8 +71,6 @@ def buyin_more(future_api, coin_name, time_type, buy_price, amount=None, lever_r
 
 
 def buyin_less(future_api, coin_name, time_type, buy_price, amount=None, lever_rate=20, taker=True):
-    ts = time.time()
-    now_time = timestamp2string(ts)
     try:
         coin_account = future_api.get_coin_account(coin_name)
         balance = float(coin_account['equity'])
@@ -90,11 +87,11 @@ def buyin_less(future_api, coin_name, time_type, buy_price, amount=None, lever_r
             else:
                 ret = future_api.take_order('', time_type, BUY_LESS_TYPE, buy_price, amount, 0, lever_rate)
 
-            log_trade_v3('In future_buyin_less function: %s, time: %s' % (ret, now_time))
+            log_trade_v3('In future_buyin_less function: %s' % ret)
 
             if ret and ret['result']:
-                email_msg = "下单做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
-                            % (coin_name, buy_price, amount, now_time, ret)
+                email_msg = "下单做空%s成功，最新价格: %.4f, 成交张数: %d, 成交结果: %s" \
+                            % (coin_name, buy_price, amount, ret)
                 thread.start_new_thread(send_email, (email_msg,))
                 return ret["order_id"]
         else:
@@ -113,8 +110,6 @@ def buyin_less_turn(future_api, coin_name, time_type, buy_price, amount=None, le
             amount = math.floor(balance * lever_rate * (buy_price - 0.1) / 10 * 0.99)
 
         turn = int(amount / batch_size)
-        ts = time.time()
-        now_time = timestamp2string(ts)
 
         if turn == 0 and amount >= 1:
             if taker:
@@ -122,11 +117,11 @@ def buyin_less_turn(future_api, coin_name, time_type, buy_price, amount=None, le
             else:
                 ret = future_api.take_order('', time_type, BUY_LESS_TYPE, buy_price, amount, 0, lever_rate)
 
-            log_trade_v3('In future_buyin_less_turn funciton: %s, time: %s' % (ret, now_time))
+            log_trade_v3('In future_buyin_less_turn funciton: %s' % ret)
 
             if ret and ret['result']:
-                email_msg = "下单做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
-                            % (coin_name, buy_price, amount, timestamp2string(time.time()), ret)
+                email_msg = "下单做空%s成功，最新价格: %.4f, 成交张数: %d, 成交结果: %s" \
+                            % (coin_name, buy_price, amount, ret)
                 thread.start_new_thread(send_email, (email_msg,))
                 return ret["order_id"]
         else:
@@ -140,8 +135,8 @@ def buyin_less_turn(future_api, coin_name, time_type, buy_price, amount=None, le
                 log_trade_v3(ret)
 
                 if ret and ret['result']:
-                    email_msg = "下单做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
-                                % (coin_name, buy_price, amount, timestamp2string(time.time()), ret)
+                    email_msg = "下单做空%s成功，最新价格: %.4f, 成交张数: %d, 成交结果: %s" \
+                                % (coin_name, buy_price, amount, ret)
                     thread.start_new_thread(send_email, (email_msg,))
                     return ret["order_id"]
                 amount = math.floor(amount * 0.99)
@@ -184,25 +179,7 @@ def cancel_uncompleted_order(future_api, coin_name, time_type, order_type=0):
     return False
 
 
-def ensure_buyin_more(future_api, coin_name, time_type, price):
-    try:
-        retry = 3
-        while retry > 0:
-            time.sleep(2)
-            retry -= 1
-            cancel_uncompleted_order(future_api, coin_name, time_type, BUY_MORE_TYPE)
-            time.sleep(1)
-            if not buyin_more_batch(future_api, coin_name, time_type, price, 20):
-                break
-        time.sleep(5)
-        cancel_uncompleted_order(future_api, coin_name, time_type, BUY_MORE_TYPE)
-    except Exception as e:
-        log_trade_v3("In ensure_buyin_more function, error: %s" % repr(e))
-        return
-
-
 def ensure_buyin_more(future_api, coin_name, time_type, buy_price, order_id, lever_rate=20):
-    now_time = timestamp2string(time.time())
     try:
         retry = 3
         while retry > 0:
@@ -224,12 +201,11 @@ def ensure_buyin_more(future_api, coin_name, time_type, buy_price, order_id, lev
         time.sleep(5)
         cancel_uncompleted_order(future_api, coin_name, time_type, BUY_MORE_TYPE)
     except Exception as e:
-        log_trade_v3("In ensure_buyin_less function, error: %s, time: %s" % (traceback.format_exc(), now_time))
+        log_trade_v3("In ensure_buyin_less function, error: %s" % traceback.format_exc())
         return
 
 
 def ensure_buyin_less(future_api, coin_name, time_type, buy_price, order_id, lever_rate=20):
-    now_time = timestamp2string(time.time())
     try:
         retry = 3
         while retry > 0:
@@ -251,12 +227,11 @@ def ensure_buyin_less(future_api, coin_name, time_type, buy_price, order_id, lev
         time.sleep(5)
         cancel_uncompleted_order(future_api, coin_name, time_type, BUY_LESS_TYPE)
     except Exception as e:
-        log_trade_v3("In ensure_buyin_less function, error: %s, time: %s" % (traceback.format_exc(), now_time))
+        log_trade_v3("In ensure_buyin_less function, error: %s" % traceback.format_exc())
         return
 
 
 def ensure_sell_more(future_api, coin_name, time_type, latest_price, buy_price, lever_rate=20):
-    now_time = timestamp2string(time.time())
     try:
         sleep_time = 3
         while True:
@@ -274,20 +249,18 @@ def ensure_sell_more(future_api, coin_name, time_type, latest_price, buy_price, 
             else:
                 break
 
-        info = u'做多卖出成功！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(latest_price - buy_price) \
-               + ', ' + now_time
+        info = u'做多卖出成功！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(latest_price - buy_price)
         thread.start_new_thread(send_email, (info,))
         file_transaction = coin_name + '_future_transaction.txt'
         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
             f.writelines(info + '\n')
     except Exception as e:
-        log_trade_v3("In future ensure_sell_more function, error: %s\r\n traceback: %s\r\n time: %s"
-                     % (repr(e), traceback.format_exc(), now_time))
+        log_trade_v3("In future ensure_sell_more function, error: %s\r\n traceback: %s"
+                     % (repr(e), traceback.format_exc()))
         return False
 
 
 def ensure_sell_less(future_api, coin_name, time_type, latest_price, buy_price, lever_rate=20):
-    now_time = timestamp2string(time.time())
     try:
         sleep_time = 3
         while True:
@@ -305,20 +278,18 @@ def ensure_sell_less(future_api, coin_name, time_type, latest_price, buy_price, 
             else:
                 break
 
-        info = u'做空卖出成功！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(buy_price - latest_price) \
-               + ', ' + now_time
+        info = u'做空卖出成功！！！卖出价格：' + str(latest_price) + u', 收益: ' + str(buy_price - latest_price)
         thread.start_new_thread(send_email, (info,))
         file_transaction = coin_name + '_future_transaction.txt'
         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
             f.writelines(info + '\n')
     except Exception as e:
-        log_trade_v3("In future ensure_sell_less function, error: %s\r\n traceback: %s\r\n time: %s"
-                     % (repr(e), traceback.format_exc(), now_time))
+        log_trade_v3("In future ensure_sell_less function, error: %s\r\n traceback: %s"
+                     % (repr(e), traceback.format_exc()))
         return False
 
 
 def buyin_more_batch(future_api, coin_name, time_type, latest_price, lever_rate=20, amount=None):
-    now_time = timestamp2string(time.time())
     try:
         result = future_api.get_coin_account(coin_name)
         balance = float(result['equity'])
@@ -328,20 +299,19 @@ def buyin_more_batch(future_api, coin_name, time_type, latest_price, lever_rate=
             order_data = gen_orders_data(latest_price, amount, BUY_MORE_TYPE, 5)
             ret = future_api.take_orders(time_type, order_data, lever_rate)
             if ret and ret['result']:
-                email_msg = "批量下单做多%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
-                            % (coin_name, latest_price, amount, now_time, ret)
+                email_msg = "批量下单做多%s成功，最新价格: %.4f, 成交张数: %d, 成交结果: %s" \
+                            % (coin_name, latest_price, amount, ret)
                 thread.start_new_thread(send_email, (email_msg,))
                 return True
             amount = math.floor(amount * 0.99)
         return False
     except Exception as e:
-        log_trade_v3("In future buyin_more_batch function, error: %s, time: %s" % (repr(e), now_time))
+        log_trade_v3("In future buyin_more_batch function, error: %s" % repr(e))
         log_trade_v3(traceback.format_exc())
         return False
 
 
 def buyin_less_batch(future_api, coin_name, time_type, buy_price, lever_rate=20, amount=None):
-    now_time = timestamp2string(time.time())
     try:
         if not amount:
             coin_account = future_api.get_coin_account(coin_name)
@@ -355,14 +325,14 @@ def buyin_less_batch(future_api, coin_name, time_type, buy_price, lever_rate=20,
             order_data = gen_orders_data(buy_price, amount, BUY_LESS_TYPE, 5)
             ret = future_api.take_orders(time_type, order_data, lever_rate)
             if ret and ret['result']:
-                email_msg = "批量下单做空%s成功，最新价格: %.4f, 成交张数: %d, 时间: %s, 成交结果: %s" \
-                            % (coin_name, buy_price, amount, now_time, ret)
+                email_msg = "批量下单做空%s成功，最新价格: %.4f, 成交张数: %d, 成交结果: %s" \
+                            % (coin_name, buy_price, amount, ret)
                 thread.start_new_thread(send_email, (email_msg,))
                 return True
             amount = math.floor(amount * 0.99)
         return False
     except Exception as e:
-        log_trade_v3("In future buyin_less_batch func, error info: %s, time: %s" % (repr(e), now_time))
+        log_trade_v3("In future buyin_less_batch func, error info: %s" % repr(e))
         log_trade_v3(traceback.format_exc())
         return False
 
@@ -432,7 +402,6 @@ def sell_less_batch(future_api, time_type, latest_price, lever_rate=20):
 
 
 def sell_less(future_api, time_type, lever_rate=20):
-    now_time = timestamp2string(time.time())
     try:
         position = future_api.get_specific_position(time_type)
         log_trade_v3('In sell_less func, %s position: %s' % (time_type, position))
@@ -441,7 +410,7 @@ def sell_less(future_api, time_type, lever_rate=20):
             if amount == 0:
                 return True
             ret = future_api.take_order('', time_type, SELL_LESS_TYPE, '', amount, 1, lever_rate)
-            log_trade_v3('In future sell_less func, sell less result: %s, time: %s' % (ret, now_time))
+            log_trade_v3('In future sell_less func, sell less result: %s' % ret)
             if ret and ret['result']:
                 break
             else:
@@ -449,12 +418,11 @@ def sell_less(future_api, time_type, lever_rate=20):
         return True
     except Exception as e:
         info = traceback.format_exc()
-        log_trade_v3("In future sell_less func, error: %s\r\n traceback: %s\r\n time: %s" % (repr(e), info, now_time))
+        log_trade_v3("In future sell_less func, error: %s\r\n traceback: %s" % (repr(e), info))
         return False
 
 
 def sell_more(future_api, time_type, lever_rate=20):
-    now_time = timestamp2string(time.time())
     try:
         position = future_api.get_specific_position(time_type)
         log_trade_v3('In sell_more func, %s position: %s' % (time_type, position))
@@ -463,7 +431,7 @@ def sell_more(future_api, time_type, lever_rate=20):
             if amount == 0:
                 return True
             ret = future_api.take_order('', time_type, SELL_MORE_TYPE, '', amount, 1, lever_rate)
-            log_trade_v3('In future sell_more func, sell more result: %s, time: %s' % (ret, now_time))
+            log_trade_v3('In future sell_more func, sell more result: %s' % ret)
             if ret and ret['result']:
                 break
             else:
@@ -471,7 +439,7 @@ def sell_more(future_api, time_type, lever_rate=20):
         return True
     except Exception as e:
         info = traceback.format_exc()
-        log_trade_v3("In future sell_more func, error: %s\r\n traceback: %s\r\n time: %s" % (repr(e), info, now_time))
+        log_trade_v3("In future sell_more func, error: %s\r\n traceback: %s" % (repr(e), info))
         return False
 
 
