@@ -139,7 +139,7 @@ def on_message(ws, message):
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
                 elif int(ts) - future_buy_time >= 60 and latest_price > spot_sell_price \
-                        and price_3m_change >= 0 and price_1m_change >= 0 and price_10s_change >= 0:
+                        and price_1m_change >= 0 and price_10s_change >= 0:
                     if sell_less(futureAPI, future_instrument_id):
                         lessless = 0
                         thread.start_new_thread(ensure_sell_less, (
@@ -184,7 +184,7 @@ def on_message(ws, message):
                         less = 0
 
                 if int(ts) - spot_buy_time > 60:
-                    if latest_price > spot_sell_price and price_1m_change > 0 and price_3m_change > 0:
+                    if latest_price > spot_sell_price and price_1m_change > 0:
                         usdt_account = spotAPI.get_coin_account_info("usdt")
                         usdt_available = float(usdt_account['available'])
                         amount = math.floor(usdt_available / latest_price)
