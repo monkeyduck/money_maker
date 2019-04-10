@@ -60,25 +60,23 @@ def handle_deque(deq, entity, ts, ind):
 def check_sell_more(time_ts, price_10s_change, price_1m_change, price_3m_change):
     if price_1m_change < 0 and new_macd < 0:
         return 1
-    elif int(time_ts) - future_buy_time >= 60 and price_1m_change <= -0.2 \
+    elif int(time_ts) - future_buy_time >= 60 and price_3m_change <= 0.2 and price_1m_change <= -0.2 \
             and latest_price <= 1.03 * future_buy_price:
         return 2
     elif int(time_ts) - future_buy_time >= 60 and latest_price < future_buy_price \
-            and price_3m_change <=0 and price_1m_change <= 0 and price_10s_change <= 0:
+            and price_3m_change <= 0 and price_1m_change <= 0 and price_10s_change <= 0:
         return 3
     elif latest_price < future_buy_price * 0.99:
         return 4
-    elif price_1m_change <= -0.4:
-        return 5
     elif latest_price > 1.1 * future_buy_price:
-        return 6
+        return 5
     return 0
 
 
 def check_sell_less(time_ts, price_10s_change, price_1m_change, price_3m_change):
     if price_1m_change > 0 and new_macd > 0:
         return 1
-    elif int(time_ts) - future_buy_time >= 60 and price_1m_change >= 0.2 and latest_price > 0.98 * future_buy_price:
+    elif int(time_ts) - future_buy_time >= 60 and price_3m_change >= -0.2 and price_1m_change >= 0.2 and latest_price > 0.98 * future_buy_price:
         return 2
     elif int(time_ts) - future_buy_time >= 60 and latest_price > future_buy_price \
             and price_3m_change >= 0 and price_1m_change >= 0 and price_10s_change >= 0:
@@ -86,7 +84,7 @@ def check_sell_less(time_ts, price_10s_change, price_1m_change, price_3m_change)
     elif latest_price > future_buy_price * 1.01:
         return 4
     elif latest_price < 0.9 * future_buy_price:
-        return 6
+        return 5
     return 0
 
 
