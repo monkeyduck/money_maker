@@ -7,7 +7,7 @@ except ImportError:
     import _thread as thread
 from utils import timestamp2string, cal_rate, inflate, string2timestamp
 from trade_spot_v3 import buy_all_position, sell_all_position, spot_buy
-from trade_v3 import  buyin_less, sell_less, ensure_buyin_less, ensure_sell_less
+from trade_v3 import  buyin_less, sell_less, ensure_buyin_less, ensure_sell_less, get_latest_future_price
 from entity import Coin, Indicator, DealEntity
 from strategy import get_spot_macd
 import time
@@ -95,22 +95,25 @@ def on_message(ws, message):
             price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
 
             # 做空
-            if lessless == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.2 * ind_3m.bid_vol \
+            if lessless == 0 and ind_3m.vol > 450000 and ind_3m.ask_vol > 1.2 * ind_3m.bid_vol \
                     and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.3 * ind_1min.bid_vol and -1.2 < price_1m_change \
                     and price_3m_change < price_1m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
+                latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
+                if not latest_future_price:
+                    latest_future_price = latest_price
                 future_buyin_less_order_id = buyin_less(
-                    futureAPI, coin.name, future_instrument_id, latest_price, amount=None, lever_rate=20, taker=True)
+                    futureAPI, coin.name, future_instrument_id, latest_future_price, amount=None, lever_rate=20, taker=True)
                 if future_buyin_less_order_id:
                     lessless = 1
                     future_buy_time = int(ts)
                     thread.start_new_thread(ensure_buyin_less,
-                                            (futureAPI, coin.name, future_instrument_id, latest_price, future_buyin_less_order_id,))
+                                            (futureAPI, coin.name, future_instrument_id, latest_future_price, future_buyin_less_order_id,))
                     future_buy_price = latest_price - 0.01
 
                     info = u'发出做空信号！！买入时间： ' + now_time
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
-            if less == 0 and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.2 * ind_3m.bid_vol \
+            if less == 0 and ind_3m.vol > 450000 and ind_3m.ask_vol > 1.2 * ind_3m.bid_vol \
                     and ind_1min.vol > 300000 and ind_1min.ask_vol > 1.3 * ind_1min.bid_vol and -1.2 < price_1m_change \
                     and price_3m_change < price_1m_change < -0.4 and price_10s_change <= -0.05 and new_macd < 0:
                 sell_id = sell_all_position(spotAPI, instrument_id, latest_price - 0.001)
