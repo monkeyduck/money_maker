@@ -110,7 +110,7 @@ def on_message(ws, message):
                                             (futureAPI, coin.name, future_instrument_id, latest_future_price, future_buyin_less_order_id,))
                     future_buy_price = latest_price - 0.01
 
-                    info = u'发出做空信号！！买入时间： ' + now_time
+                    info = now_time + u' 发出做空信号！！future_buy_price： ' + str(future_buy_price)
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
             if less == 0 and ind_3m.vol > 450000 and ind_3m.ask_vol > 1.2 * ind_3m.bid_vol \
@@ -124,7 +124,7 @@ def on_message(ws, message):
                     if sell_order_info['status'] == 'filled' or sell_order_info['status'] == 'part_filled':
                         less = 1
                         spot_sell_price = float(sell_order_info['price'])
-                        info = u'现货全部卖出！！！平均成交价格：' + spot_sell_price + u', ' + now_time
+                        info = now_time + u' 现货全部卖出！！！spot_sell_price：' + str(spot_sell_price)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
                     else:
@@ -138,8 +138,8 @@ def on_message(ws, message):
                         info = u'做空止盈，盈利%.3f, time: %s' % (future_buy_price - latest_price, now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
-                elif int(ts) - future_buy_time >= 60 and latest_price > spot_sell_price \
-                        and price_1m_change >= 0 and price_10s_change >= 0:
+                elif int(ts) - future_buy_time >= 60 and latest_price > future_buy_price \
+                        and price_1m_change >= 0 and price_10s_change >= 0 and ind_1min.bid_vol > ind_1min.ask_vol:
                     if sell_less(futureAPI, future_instrument_id):
                         lessless = 0
                         thread.start_new_thread(ensure_sell_less, (
@@ -147,7 +147,7 @@ def on_message(ws, message):
                         info = u'做空止损，亏损%.2f, time: %s' % ((latest_price - spot_buy_price), now_time)
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
-                elif latest_price > spot_sell_price * 1.01:
+                elif latest_price > future_buy_price * 1.01:
                     if sell_less(futureAPI, future_instrument_id):
                         lessless = 0
                         thread.start_new_thread(ensure_sell_less, (
