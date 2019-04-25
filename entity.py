@@ -81,7 +81,6 @@ class Coin:
         return self.ind_5min.cal_avg_price()
 
 
-
 class IndexEntity:
     def __init__(self, _coin_name, _index, _timestamp):
         self.coin_name = _coin_name

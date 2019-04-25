@@ -1,7 +1,8 @@
 import requests
 import json
 import consts as c
-import utils, exceptions
+import utils
+import exceptions
 
 
 class Client(object):
@@ -12,7 +13,6 @@ class Client(object):
         self.API_SECRET_KEY = api_seceret_key
         self.PASSPHRASE = passphrase
         self.use_server_time = use_server_time
-
 
     def _request(self, method, request_path, params, cursor=False):
 
