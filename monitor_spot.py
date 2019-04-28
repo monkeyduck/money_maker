@@ -70,6 +70,10 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
             and price_3m_change < price_1m_change < -0.3 \
             and new_macd < 0:
         return True
+    elif 200000 > ind_3m.vol > ind_1min.vol > 150000 and ind_1min.ask_vol > 5 * ind_1min.bid_vol \
+            and ind_10s.ask_vol > 10 * ind_10s.bid_vol and price_3m_change < price_1m_change < -0.2 \
+            and new_macd < 0:
+        return True
     return False
 
 
