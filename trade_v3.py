@@ -46,7 +46,7 @@ def buyin_more(future_api, coin_name, time_type, buy_price, amount=None, lever_r
             log_trade_v3("In future buyin_more function, available balance less than 1, balance: %.2f" % balance)
             return False
         if not amount:
-            amount = math.floor(balance * lever_rate * (buy_price - 0.1) / 10 * 0.99)
+            amount = math.floor(balance * lever_rate * buy_price / 10 * 0.99)
             log_trade_v3('In buyin_more function, plan to buyin amount: %d' % amount)
 
         if amount >= 1:
@@ -78,7 +78,7 @@ def buyin_less(future_api, coin_name, time_type, buy_price, amount=None, lever_r
             log_trade_v3("In future buyin_less function, available balance less than 1, balance: %.2f" % balance)
             return False
         if not amount:
-            amount = math.floor(balance * lever_rate * (buy_price - 0.1) / 10 * 0.99)
+            amount = math.floor(balance * lever_rate * buy_price / 10 * 0.99)
             log_trade_v3('In buyin_less function, plan to buyin amount: %d' % amount)
 
         if amount >= 1:
