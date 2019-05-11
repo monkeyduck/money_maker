@@ -66,8 +66,8 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
             and price_3m_change < price_1m_change < -0.2 and price_10s_change <= -0.05 \
             and new_macd < 0:
         return True
-    elif ind_1min.vol > 100000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
-            and ind_3m.vol > 150000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
+    elif ind_1min.vol > 150000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
+            and ind_3m.vol > 200000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
             and price_3m_change < price_1m_change < -0.2 and price_10s_change <= -0.05 \
             and new_macd < 0:
         return True
@@ -76,12 +76,12 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
 
 def check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
     if ind_1min.vol > 200000 and ind_1min.ask_vol * 2 < ind_1min.bid_vol \
-            and ind_3m.vol > 250000 and ind_3m.ask_vol * 1.5 < ind_3m.bid_vol \
+            and ind_3m.vol > 250000 and ind_3m.ask_vol * 2 < ind_3m.bid_vol \
             and price_3m_change > price_1m_change > 0.2 and price_10s_change >= 0.05 \
             and new_macd > 0:
         return True
-    elif ind_1min.vol > 100000 and ind_1min.ask_vol * 2 < ind_1min.bid_vol \
-            and ind_3m.vol > 150000 and ind_3m.ask_vol * 2 < ind_3m.bid_vol \
+    elif ind_1min.vol > 150000 and ind_1min.ask_vol * 2 < ind_1min.bid_vol \
+            and ind_3m.vol > 200000 and ind_3m.ask_vol * 2 < ind_3m.bid_vol \
             and price_3m_change > price_1m_change > 0.2 and price_10s_change >= 0.05 \
             and new_macd > 0:
         return True
