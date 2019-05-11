@@ -63,12 +63,12 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
         return True
     elif ind_1min.vol > 200000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
             and ind_3m.vol > 250000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
-            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05 \
+            and price_3m_change < price_1m_change < -0.2 and price_10s_change <= -0.05 \
             and new_macd < 0:
         return True
-    elif ind_1min.vol > 100000 and ind_1min.ask_vol > 3 * ind_1min.bid_vol \
+    elif ind_1min.vol > 100000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
             and ind_3m.vol > 150000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
-            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05 \
+            and price_3m_change < price_1m_change < -0.2 and price_10s_change <= -0.05 \
             and new_macd < 0:
         return True
     return False
@@ -77,12 +77,12 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
 def check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
     if ind_1min.vol > 200000 and ind_1min.ask_vol * 2 < ind_1min.bid_vol \
             and ind_3m.vol > 250000 and ind_3m.ask_vol * 1.5 < ind_3m.bid_vol \
-            and price_3m_change > price_1m_change > 0.3 and price_10s_change >= 0.05 \
+            and price_3m_change > price_1m_change > 0.2 and price_10s_change >= 0.05 \
             and new_macd > 0:
         return True
-    elif ind_1min.vol > 100000 and ind_1min.ask_vol * 3 < ind_1min.bid_vol \
+    elif ind_1min.vol > 100000 and ind_1min.ask_vol * 2 < ind_1min.bid_vol \
             and ind_3m.vol > 150000 and ind_3m.ask_vol * 2 < ind_3m.bid_vol \
-            and price_3m_change > price_1m_change > 0.3 and price_10s_change >= 0.05 \
+            and price_3m_change > price_1m_change > 0.2 and price_10s_change >= 0.05 \
             and new_macd > 0:
         return True
     return False
@@ -160,7 +160,7 @@ def on_message(ws, message):
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
             if moremore == 1:
-                if int(ts) - future_buy_time >= 60 and price_10s_change < -0.01:
+                if int(ts) - future_buy_time >= 60 and price_10s_change < -0.03:
                     if sell_more(futureAPI, future_instrument_id):
                         moremore = 0
                         thread.start_new_thread(ensure_sell_more, (futureAPI, coin.name, future_instrument_id,
@@ -189,7 +189,7 @@ def on_message(ws, message):
                         with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                             f.writelines(info + '\n')
 
-                elif int(ts) - future_buy_time >= 60 and price_10s_change > 0.01:
+                elif int(ts) - future_buy_time >= 60 and price_10s_change > 0.03:
                     if sell_less(futureAPI, future_instrument_id):
                         lessless = 0
                         thread.start_new_thread(ensure_sell_less, (
