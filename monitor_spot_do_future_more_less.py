@@ -127,7 +127,7 @@ def on_message(ws, message):
             price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
 
             # 做空
-            if lessless == 0 and int(ts) - freeze_time > 180 and check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
+            if lessless == 0 and int(ts) - freeze_time > 600 and check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
                 latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
                 if not latest_future_price:
                     latest_future_price = latest_price
@@ -144,7 +144,7 @@ def on_message(ws, message):
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
 
-            if moremore == 0 and int(ts) - freeze_time > 180 and check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
+            if moremore == 0 and int(ts) - freeze_time > 600 and check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
                 latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
                 if not latest_future_price:
                     latest_future_price = latest_price
