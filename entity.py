@@ -119,11 +119,7 @@ class DealEntity:
         self.type = _type
 
     def detail(self):
-        if self.type == 'ask':
-            category = 'sell '
-        else:
-            category = 'buy  '
-        return str(self.time) + ': ' + category + str(self.amount) + '\t at price: ' + str(self.price)
+        return str(self.time) + ': ' + self.type + str(self.amount) + '\t at price: ' + str(self.price)
 
 
 class Indicator:
@@ -144,16 +140,16 @@ class Indicator:
 
     def add_vol(self, deal_entity):
         self.vol += deal_entity.amount
-        if deal_entity.type == 'ask':
+        if deal_entity.type == 'sell':
             self.ask_vol += deal_entity.amount
-        elif deal_entity.type == 'bid':
+        elif deal_entity.type == 'buy':
             self.bid_vol += deal_entity.amount
 
     def minus_vol(self, deal_entity):
         self.vol -= deal_entity.amount
-        if deal_entity.type == 'ask':
+        if deal_entity.type == 'sell':
             self.ask_vol -= deal_entity.amount
-        elif deal_entity.type == 'bid':
+        elif deal_entity.type == 'buy':
             self.bid_vol -= deal_entity.amount
 
     def add_price(self, deal_entity):
