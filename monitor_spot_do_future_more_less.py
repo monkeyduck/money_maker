@@ -257,13 +257,14 @@ if __name__ == '__main__':
         else:
             print('输入config_file有误，请输入config_mother or config_son1 or config_son3')
             sys.exit()
-        ws = websocket.WebSocketApp("wss://real.okex.com:10442/ws/v3?compress=true",
-                                    on_message=on_message,
-                                    on_error=on_error,
-                                    on_close=on_close)
-        ws.on_open = on_open
+
         while True:
-            ws.run_forever(ping_interval=20, ping_timeout=10)
+            ws = websocket.WebSocketApp("wss://real.okex.com:10442/ws/v3?compress=true",
+                                        on_message=on_message,
+                                        on_error=on_error,
+                                        on_close=on_close)
+            ws.on_open = on_open
+            ws.run_forever(ping_interval=15, ping_timeout=10)
             print("write left lines into file...")
             with codecs.open(file_deal, 'a+', 'UTF-8') as f:
                 f.writelines(write_lines)
