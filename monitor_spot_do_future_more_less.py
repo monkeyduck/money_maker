@@ -67,7 +67,7 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
             and new_macd < 0:
         return True
     elif ind_1min.vol > 150000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
-            and ind_3m.vol > 200000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
+            and ind_3m.vol > 200000 and ind_3m.ask_vol > 1.5 * ind_3m.bid_vol \
             and price_3m_change < price_1m_change < -0.2 and price_10s_change <= -0.05 \
             and new_macd < 0:
         return True
@@ -124,7 +124,7 @@ def on_message(ws, message):
         price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
 
         # 做空
-        if lessless == 0 and int(ts) - freeze_time > 600 and check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
+        if lessless == 0 and int(ts) - freeze_time > 300 and check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
             latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
             if not latest_future_price:
                 latest_future_price = latest_price
@@ -141,7 +141,7 @@ def on_message(ws, message):
                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                     f.writelines(info + '\n')
 
-        if moremore == 0 and int(ts) - freeze_time > 600 and check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
+        if moremore == 0 and int(ts) - freeze_time > 300 and check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
             latest_future_price = get_latest_future_price(futureAPI, future_instrument_id)
             if not latest_future_price:
                 latest_future_price = latest_price
