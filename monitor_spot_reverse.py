@@ -152,7 +152,7 @@ def on_message(ws, message):
                 with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                     f.writelines(info + '\n')
         if moremore == 1:
-            if int(ts) - future_buy_time >= 60 and (price_10s_change < -0.1 or price_1m_change < 0):
+            if int(ts) - future_buy_time >= 60 and price_10s_change < -0.03:
                 if sell_more(futureAPI, future_instrument_id):
                     moremore = 0
                     thread.start_new_thread(ensure_sell_more, (futureAPI, coin.name, future_instrument_id,
@@ -181,7 +181,7 @@ def on_message(ws, message):
                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                         f.writelines(info + '\n')
 
-            elif int(ts) - future_buy_time >= 60 and (price_10s_change > 0.1 or price_1m_change > 0):
+            elif int(ts) - future_buy_time >= 60 and price_10s_change > 0.03:
                 if sell_less(futureAPI, future_instrument_id):
                     lessless = 0
                     thread.start_new_thread(ensure_sell_less, (
