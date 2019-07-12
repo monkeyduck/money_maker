@@ -140,16 +140,16 @@ class Indicator:
 
     def add_vol(self, deal_entity):
         self.vol += deal_entity.amount
-        if deal_entity.type == 'sell':
+        if deal_entity.type == 'ask':
             self.ask_vol += deal_entity.amount
-        elif deal_entity.type == 'buy':
+        elif deal_entity.type == 'bid':
             self.bid_vol += deal_entity.amount
 
     def minus_vol(self, deal_entity):
         self.vol -= deal_entity.amount
-        if deal_entity.type == 'sell':
+        if deal_entity.type == 'ask':
             self.ask_vol -= deal_entity.amount
-        elif deal_entity.type == 'buy':
+        elif deal_entity.type == 'bid':
             self.bid_vol -= deal_entity.amount
 
     def add_price(self, deal_entity):

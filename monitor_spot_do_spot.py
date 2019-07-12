@@ -182,7 +182,7 @@ def on_message(ws, message):
                         else:
                             less = 0
 
-            holding_status = 'future_less: %d, spot_less: %d, future_more: %d' % (lessless, less, lessmore)
+            holding_status = 'spot_less: %d' % less
             price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
                                             u'3min_price: %.4f' \
                          % (latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_3m_price)
