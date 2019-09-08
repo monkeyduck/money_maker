@@ -61,12 +61,12 @@ def handle_deque(deq, entity, ts, ind):
 
 def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
     if ind_1min.vol > 300000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol \
-            and ind_3m.vol > 400000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
+            and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
             and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05 and new_macd < 0:
         return True
     elif ind_1min.vol > 200000 and ind_1min.ask_vol > 3 * ind_1min.bid_vol \
-            and ind_3m.vol > 250000 and ind_3m.ask_vol > 1.5 * ind_3m.bid_vol \
-            and price_3m_change < price_1m_change < -0.2 and price_10s_change <= -0.05 \
+            and ind_3m.vol > 300000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
+            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05 \
             and new_macd < 0:
         return True
     return False
@@ -167,7 +167,7 @@ def on_message(ws, message):
                                 if order_info['status'] == 'filled':
                                     less = 0
                                     spot_buy_price = order_info['price']
-                                    info = u'macd > 0, 买入现货止盈！！！买入价格：' + str(spot_buy_price) + u', ' + now_time
+                                    info = u'macd > 0, 买入现货止损！！！买入价格：' + str(spot_buy_price) + u', ' + now_time
                                     with codecs.open(file_transaction, 'a+', 'utf-8') as f:
                                         f.writelines(info + '\n')
                                 else:
@@ -227,20 +227,21 @@ if __name__ == '__main__':
         config_file = sys.argv[2]
         if config_file == 'config_mother':
             from config_mother import spotAPI, okFuture, futureAPI
-        elif config_file == 'config_son1':
-            from config_son1 import spotAPI, okFuture, futureAPI
-        elif config_file == 'config_son3':
-            from config_son3 import spotAPI, okFuture, futureAPI
+        # elif config_file == 'config_son1':
+        #     from config_son1 import spotAPI, okFuture, futureAPI
+        # elif config_file == 'config_son3':
+        #     from config_son3 import spotAPI, okFuture, futureAPI
         else:
             print('输入config_file有误，请输入config_mother or config_son1 or config_son3')
             sys.exit()
-        ws = websocket.WebSocketApp("wss://real.okex.com:10440/websocket/okexapi?compress=true",
-                                    on_message=on_message,
-                                    on_error=on_error,
-                                    on_close=on_close)
-        ws.on_open = on_open
+
         while True:
-            ws.run_forever(ping_interval=20, ping_timeout=10)
+            ws = websocket.WebSocketApp("wss://real.okex.com:10442/ws/v3?compress=true",
+                                        on_message=on_message,
+                                        on_error=on_error,
+                                        on_close=on_close)
+            ws.on_open = on_open
+            ws.run_forever(ping_interval=15, ping_timeout=10)
             print("write left lines into file...")
             with codecs.open(file_deal, 'a+', 'UTF-8') as f:
                 f.writelines(write_lines)
