@@ -3,6 +3,8 @@
 
 import os
 from collections import deque
+INSTRUMENT_ID_LINKER = '_'
+
 
 def handle_deque(deq, entity, ts, ind):
     while len(deq) > 0:
@@ -41,7 +43,7 @@ class Coin:
         return transaction, deal
 
     def gen_full_name(self):
-        return self.name + "_" + self.refer
+        return self.name + INSTRUMENT_ID_LINKER + self.refer
 
     def get_depth_filename(self):
         file_path = os.getcwd()
@@ -49,7 +51,7 @@ class Coin:
         return depth
 
     def get_instrument_id(self):
-        return self.name + "_" + self.refer
+        return self.name + INSTRUMENT_ID_LINKER + self.refer
 
     def get_future_instrument_id(self):
         return self.name.upper() + "-USD-190628"
