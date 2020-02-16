@@ -8,7 +8,6 @@ except ImportError:
 from utils import timestamp2string, cal_rate, inflate, string2timestamp
 from config_mother import leverAPI, spotAPI
 from entity import Coin, Indicator, DealEntity, INSTRUMENT_ID_LINKER
-from strategy import get_spot_macd
 import time
 import json
 import traceback
@@ -30,8 +29,7 @@ ind_3m = Indicator(180)
 less = 0
 lessless = 0
 lessmore = 0
-last_3min_macd_ts = 0
-
+lever_less_time = 0
 last_avg_price = 0
 
 write_lines = []
@@ -58,13 +56,12 @@ def handle_deque(deq, entity, ts, ind):
 
 def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
     if ind_1min.vol > 300000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol \
-            and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
-            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05 and new_macd < 0:
+            and ind_3m.vol > 400000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
+            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05:
         return True
-    elif ind_1min.vol > 200000 and ind_1min.ask_vol > 3 * ind_1min.bid_vol \
+    elif ind_1min.vol > 200000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
             and ind_3m.vol > 300000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
-            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05 \
-            and new_macd < 0:
+            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05:
         return True
     return False
 
@@ -151,20 +148,20 @@ def on_message(ws, message):
     if 'pong' in message or 'addChannel' in message:
         return
     global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, future_buy_price,\
-        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, new_macd, lessless,\
+        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, lessless,\
         future_buy_time, spot_buy_time, spot_sell_price, spot_buy_price, lessmore, future_more_buy_price
     jmessage = json.loads(message)
 
     ts = time.time()
     now_time = timestamp2string(ts)
-    if int(ts) - last_3min_macd_ts > 60:
-        last_3min_macd_ts = int(ts)
-        df = get_spot_macd(spotAPI, instrument_id, 300)
-        diff = list(df['diff'])
-        dea = list(df['dea'])
-        new_macd = 2 * (diff[-1] - dea[-1])
-        with codecs.open(file_deal, 'a+', 'UTF-8') as f:
-            f.writelines('update macd: %.6f\r\n' % new_macd)
+    # if int(ts) - last_3min_macd_ts > 60:
+    #     last_3min_macd_ts = int(ts)
+    #     df = get_spot_macd(spotAPI, instrument_id, 300)
+    #     diff = list(df['diff'])
+    #     dea = list(df['dea'])
+    #     new_macd = 2 * (diff[-1] - dea[-1])
+    #     with codecs.open(file_deal, 'a+', 'UTF-8') as f:
+    #         f.writelines('update macd: %.6f\r\n' % new_macd)
 
     for each_message in jmessage:
         for jdata in each_message['data']:
@@ -183,9 +180,10 @@ def on_message(ws, message):
             price_10s_change = cal_rate(avg_3s_price, avg_10s_price)
             price_1m_change = cal_rate(avg_3s_price, avg_min_price)
             price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
-
+            price_change_3m_ago = cal_rate(latest_price, deque_3m[0])
+            write_info("3min ago change: %.2f%%" % price_change_3m_ago)
             # 做空
-            if less == 0 and check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
+            if less == 0 and price_change_3m_ago > -5 and check_do_future_less(price_3m_change, price_1m_change, price_10s_change) and price_change_3m_ago :
                 lever_less_order_id = do_lever_less()
                 if lever_less_order_id:
                     lever_less_time = int(ts)
@@ -201,7 +199,7 @@ def on_message(ws, message):
                     else:
                         leverAPI.revoke_order_exception(instrument_id, lever_less_order_id)
             if less == 1:
-                if price_1m_change > 0 and int(ts) - lever_less_time and ind_1min.bid_vol > ind_1min.ask_vol:
+                if price_1m_change > 0 and int(ts) - lever_less_time > 120 and ind_1min.bid_vol > ind_1min.ask_vol:
                     if stop_lever_less(latest_price):
                         less = 0
 
@@ -217,8 +215,8 @@ def on_message(ws, message):
                        u'3s_ask_vol: %.3f, 3s_bid_vol: %.3f, 3min vol: %.3f, 3min_ask_vol: %.3f, 3min_bid_vol: %.3f' \
                        % (deal_entity.amount, ind_1s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
                           ind_1s.ask_vol, ind_1s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
-            rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 3min_rate: %.2f%%, new_macd: %.6f' \
-                        % (price_10s_change, price_1m_change, price_3m_change, new_macd)
+            rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 3min_rate: %.2f%%' \
+                        % (price_10s_change, price_1m_change, price_3m_change)
             info = holding_status + u',' + price_info + u',' + vol_info + u',' + rate_info + u',' + now_time + '\r\n'
             write_lines.append(info)
             if len(write_lines) >= 100:
@@ -240,7 +238,7 @@ def on_close(ws):
 
 def on_open(ws):
     print("websocket connected...")
-    ws.send("{'event':'addChannel','channel':'ok_sub_spot_%s_usdt_deals'}" % coin.name)
+    ws.send("{\"op\": \"subscribe\", \"args\": [\"spot/trade:%s-USDT\"]}" % (coin.name.upper()))
 
 
 if __name__ == '__main__':
@@ -252,18 +250,18 @@ if __name__ == '__main__':
         future_instrument_id = coin.get_future_instrument_id()
         file_transaction, file_deal = coin.gen_file_name()
         config_file = sys.argv[2]
-        # if config_file == 'config_mother':
-        #     from config_mother import spotAPI, okFuture, futureAPI
+        if config_file == 'config_mother':
+            from config_mother import spotAPI, okFuture, futureAPI
         # elif config_file == 'config_son1':
         #     from config_son1 import spotAPI, okFuture, futureAPI
         # elif config_file == 'config_son3':
         #     from config_son3 import spotAPI, okFuture, futureAPI
-        # else:
-        #     print('输入config_file有误，请输入config_mother or config_son1 or config_son3')
-        #     sys.exit()
+        else:
+            print('输入config_file有误，请输入config_mother or config_son1 or config_son3')
+            sys.exit()
 
         while True:
-            ws = websocket.WebSocketApp("wss://real.okex.com:10442/ws/v3?compress=true",
+            ws = websocket.WebSocketApp("wss://real.okex.com:8443/ws/v3?compress=true",
                                         on_message=on_message,
                                         on_error=on_error,
                                         on_close=on_close)
