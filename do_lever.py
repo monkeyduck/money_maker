@@ -6,7 +6,6 @@ try:
 except ImportError:
     import _thread as thread
 from utils import timestamp2string, cal_rate, inflate, string2timestamp
-from config_mother import leverAPI, spotAPI
 from entity import Coin, Indicator, DealEntity, INSTRUMENT_ID_LINKER
 import time
 import json
@@ -28,17 +27,18 @@ ind_1s = Indicator(1)
 ind_3m = Indicator(180)
 less = 0
 lessless = 0
-lessmore = 0
-lever_less_time = 0
+moremore = 0
+last_3min_macd_ts = 0
+
 last_avg_price = 0
 
+future_buy_time = 0
+
+spot_buy_time = 0
+buyin_price_spot = 0
+freeze_time = 0
+
 write_lines = []
-
-
-def write_info(info):
-    print(info)
-    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-        f.writelines(info + '\n')
 
 
 def handle_deque(deq, entity, ts, ind):
@@ -69,15 +69,15 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
 def do_lever_less():
     borrow_num = borrow_coin(instrument_id.split(INSTRUMENT_ID_LINKER)[0])
     if borrow_num:
-        print('借币成功,' + instrument_id.split(INSTRUMENT_ID_LINKER)[0] + ', num:' + borrow_num)
+        write_info('借币成功,' + instrument_id.split(INSTRUMENT_ID_LINKER)[0] + ', num:' + borrow_num)
         sell_order_id = False
         while not sell_order_id:
             sell_order_id = sell_all_coin(instrument_id)
             time.sleep(0.5)
-        print('卖出成功' + instrument_id.split(INSTRUMENT_ID_LINKER)[0])
+        write_info('卖出成功' + instrument_id.split(INSTRUMENT_ID_LINKER)[0])
         return sell_order_id
     else:
-        print("借币失败！")
+        write_info("借币失败！")
         return False
 
 
@@ -127,118 +127,75 @@ def stop_lever_less(price):
 def borrow_coin(currency):
     try:
         query_available_result = leverAPI.query_lever_available(instrument_id)
-        print('query available result: %s', query_available_result)
+        write_info('query available result: %s', query_available_result)
         borrow_num = 0
         for result in query_available_result:
             borrow_num = int(result['currency:' + currency.upper()]['available'])
         if borrow_num > 0:
             borrow_result = leverAPI.borrow_coin(instrument_id, currency, borrow_num)
-            print('borrow result: %s', borrow_result)
+            write_info('borrow result: %s', borrow_result)
             if borrow_result and borrow_result['result']:
                 return borrow_num
         else:
             return False
     except Exception as e:
-        print(repr(e))
+        write_info(repr(e))
         return False
 
 
+def write_info(info):
+    print(info)
+    with codecs.open(file_transaction, 'a+', 'utf-8') as f:
+        f.writelines(info + '\n')
+
+
 def on_message(ws, message):
-    message = bytes.decode(inflate(message), 'utf-8')  # data decompress
-    if 'pong' in message or 'addChannel' in message:
-        return
-    global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, future_buy_price,\
-        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, lessless,\
-        future_buy_time, spot_buy_time, spot_sell_price, spot_buy_price, lessmore, future_more_buy_price
-    jmessage = json.loads(message)
+    global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min,\
+        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, new_macd, lessless,\
+        future_buy_time, buyin_price_spot, moremore, freeze_time
 
     ts = time.time()
     now_time = timestamp2string(ts)
-    # if int(ts) - last_3min_macd_ts > 60:
-    #     last_3min_macd_ts = int(ts)
-    #     df = get_spot_macd(spotAPI, instrument_id, 300)
-    #     diff = list(df['diff'])
-    #     dea = list(df['dea'])
-    #     new_macd = 2 * (diff[-1] - dea[-1])
-    #     with codecs.open(file_deal, 'a+', 'UTF-8') as f:
-    #         f.writelines('update macd: %.6f\r\n' % new_macd)
 
-    for each_message in jmessage:
-        for jdata in each_message['data']:
-            latest_price = float(jdata[1])
-            deal_entity = DealEntity(jdata[0], float(jdata[1]), round(float(jdata[2]), 3), ts, jdata[4])
+    message = bytes.decode(inflate(message), 'utf-8')  # data decompress
+    json_message = json.loads(message)
+    for json_data in json_message['data']:
+        json_data = {'side': 'buy', 'trade_id': '4879570', 'price': '4.836', 'size': '103.6', 'instrument_id': 'EOS-USDT', 'timestamp': '2020-02-16T03:44:30.503Z'}
+        trade_side = json_data['side']
+        trade_id = json_data['trade_id']
+        trade_price = json_data['price']
+        trade_size = json_data['size']
+        trade_time = json_data['timestamp']
+        # +8h，转成北京时间
+        trade_time_local = int(time.mktime(time.strptime(trade_time, "%Y-%m-%dT%H:%M:%S.%fZ"))) + 8 * 3600
+        deal_entity = DealEntity(trade_id, trade_price, trade_size, trade_time_local, trade_side)
+        handle_deque(deque_3s, deal_entity, ts, ind_1s)
+        handle_deque(deque_10s, deal_entity, ts, ind_10s)
+        handle_deque(deque_min, deal_entity, ts, ind_1min)
+        handle_deque(deque_3m, deal_entity, ts, ind_3m)
 
-            handle_deque(deque_3s, deal_entity, ts, ind_1s)
-            handle_deque(deque_10s, deal_entity, ts, ind_10s)
-            handle_deque(deque_min, deal_entity, ts, ind_1min)
-            handle_deque(deque_3m, deal_entity, ts, ind_3m)
-
-            avg_3s_price = ind_1s.cal_avg_price()
-            avg_10s_price = ind_10s.cal_avg_price()
-            avg_min_price = ind_1min.cal_avg_price()
-            avg_3m_price = ind_3m.cal_avg_price()
-            price_10s_change = cal_rate(avg_3s_price, avg_10s_price)
-            price_1m_change = cal_rate(avg_3s_price, avg_min_price)
-            price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
-            price_change_3m_ago = cal_rate(latest_price, deque_3m[0])
-            write_info("3min ago change: %.2f%%" % price_change_3m_ago)
-            # 做空
-            if less == 0 and price_change_3m_ago > -5 and check_do_future_less(price_3m_change, price_1m_change, price_10s_change) and price_change_3m_ago :
-                lever_less_order_id = do_lever_less()
-                if lever_less_order_id:
-                    lever_less_time = int(ts)
-                    time.sleep(1)
-                    sell_order_info = leverAPI.get_order_info(lever_less_order_id, instrument_id)
-                    # 1:部分成交 2：完全成交
-                    if sell_order_info['state'] == '1' or sell_order_info['state'] == '2':
-                        less = 1
-                        lever_sell_price = float(sell_order_info['price_avg'])
-                        info = now_time + u' 杠杆卖出！！！卖出均价：' + str(lever_sell_price)
-                        with codecs.open(file_transaction, 'a+', 'utf-8') as f:
-                            f.writelines(info + '\n')
-                    else:
-                        leverAPI.revoke_order_exception(instrument_id, lever_less_order_id)
-            if less == 1:
-                if price_1m_change > 0 and int(ts) - lever_less_time > 120 and ind_1min.bid_vol > ind_1min.ask_vol:
-                    if stop_lever_less(latest_price):
-                        less = 0
-
-                if int(ts) - lever_less_time > 60 and latest_price > lever_sell_price:
-                    if stop_lever_less(latest_price):
-                        less = 0
-
-            holding_status = 'spot_less: %d' % less
-            price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
-                                            u'3min_price: %.4f' \
-                         % (latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_3m_price)
-            vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f, ' \
-                       u'3s_ask_vol: %.3f, 3s_bid_vol: %.3f, 3min vol: %.3f, 3min_ask_vol: %.3f, 3min_bid_vol: %.3f' \
-                       % (deal_entity.amount, ind_1s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
-                          ind_1s.ask_vol, ind_1s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
-            rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 3min_rate: %.2f%%' \
-                        % (price_10s_change, price_1m_change, price_3m_change)
-            info = holding_status + u',' + price_info + u',' + vol_info + u',' + rate_info + u',' + now_time + '\r\n'
-            write_lines.append(info)
-            if len(write_lines) >= 100:
-                with codecs.open(file_deal, 'a+', 'UTF-8') as f:
-                    f.writelines(write_lines)
-                    write_lines = []
-
-            print(holding_status + '\r\n' + price_info + '\r\n' + vol_info + '\r\n' + rate_info + u', ' + now_time)
+        avg_3s_price = ind_1s.cal_avg_price()
+        avg_10s_price = ind_10s.cal_avg_price()
+        avg_min_price = ind_1min.cal_avg_price()
+        avg_3m_price = ind_3m.cal_avg_price()
+        price_10s_change = cal_rate(avg_3s_price, avg_10s_price)
+        price_1m_change = cal_rate(avg_3s_price, avg_min_price)
+        price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
+        price_change_3m_ago = cal_rate(latest_price, deque_3m[0])
+        write_info("3min ago change: %.2f%%" % price_change_3m_ago)
 
 
 def on_error(ws, error):
-    traceback.print_exc()
-    print(error)
+    traceback.write_info_exc()
+    write_info(error)
 
 
 def on_close(ws):
-    print("### closed ###")
+    write_info("### closed ###")
 
 
 def on_open(ws):
-    print("websocket connected...")
-    # ws.send("{'event':'addChannel','channel':'ok_sub_spot_%s_usdt_deals'}" % coin.name)
+    write_info("websocket connected...")
     ws.send("{\"op\": \"subscribe\", \"args\": [\"spot/trade:%s-USDT\"]}" % (coin.name.upper()))
 
 
@@ -252,7 +209,7 @@ if __name__ == '__main__':
         file_transaction, file_deal = coin.gen_file_name()
         config_file = sys.argv[2]
         if config_file == 'config_mother':
-            from config_mother import spotAPI, okFuture, futureAPI
+            from config_mother import leverAPI
         # elif config_file == 'config_son1':
         #     from config_son1 import spotAPI, okFuture, futureAPI
         # elif config_file == 'config_son3':
