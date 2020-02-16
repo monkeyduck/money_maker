@@ -10,4 +10,4 @@ from config_mother import leverAPI
 
 if __name__ == '__main__':
     # print(leverAPI.borrow_coin("eos-usdt", "usdt", 1))
-    print(leverAPI.repay_coin("eos-usdt", "usdt", 1))
+    print(leverAPI.get_coin_account_info("eos_usdt"))

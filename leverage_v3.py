@@ -115,3 +115,16 @@ class LeverageAPI(Client):
             print(repr(e))
             return False
 
+
+    # 全部成交或立即取消
+    def lever_sell_FOK(self, instrument_id, amount, price):
+        try:
+            ret = self.take_order('limit', 'sell', instrument_id, amount, margin_trading=2, price=price,
+                                  order_type='2')
+            if ret and ret['result']:
+                return ret['order_id']
+            return False
+        except Exception as e:
+            print(repr(e))
+        return False
+
