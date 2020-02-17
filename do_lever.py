@@ -62,68 +62,83 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
 
 
 def check_do_future_less_test(price_3m_change, price_1m_change, price_10s_change):
-    if ind_1min.vol > 30000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol \
-            and ind_3m.vol > 40000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
-            and price_3m_change < price_1m_change < -0.1 and price_10s_change <= -0.01:
-        return True
-    elif ind_1min.vol > 20000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
-            and ind_3m.vol > 30000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
-            and price_3m_change < price_1m_change < -0.1 and price_10s_change <= -0.01:
-        return True
-    return False
+    return True
+    # if ind_1min.vol > 3000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol \
+    #         and ind_3m.vol > 4000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
+    #         and price_3m_change < price_1m_change < -0.1 and price_10s_change <= -0.01:
+    #     return True
 
 
 def do_lever_less():
-    borrow_coin(instrument_id.split(INSTRUMENT_ID_LINKER)[0])
-    write_info('start to sell coin', file_transaction)
-    result = sell_coin(instrument_id.split(INSTRUMENT_ID_LINKER)[0])
-    write_info('sell result: ' + result, file_transaction)
+    borrow_coin()
+    return sell_coin()
 
 
-def borrow_coin(currency):
+def borrow_coin():
+    currency = instrument_id.split(INSTRUMENT_ID_LINKER)[0]
     query_available_result = leverAPI.query_lever_available(instrument_id)
-    borrow_num = 0
-    for result in query_available_result:
-        borrow_num = int(float(result['currency:' + currency.upper()]['available']))
+    result = query_available_result[0]
+    borrow_num = int(float(result['currency:' + currency.upper()]['available']))
     if borrow_num > 0:
         borrow_result = leverAPI.borrow_coin(instrument_id, currency, borrow_num)
         if borrow_result and borrow_result['result']:
-            write_info('借币成功 %s，num: %s' % (currency, str(borrow_num)), file_transaction)
+            write_info_into_file('借币成功 %s，num: %s' % (currency, str(borrow_num)), file_transaction)
             return borrow_num
     else:
-        return False
+        write_info_into_file("无可借币", file_transaction)
 
 
-def sell_coin(currency):
+def sell_coin():
+    global lever_sell_price
+    currency = instrument_id.split(INSTRUMENT_ID_LINKER)[0]
     coin_account = leverAPI.get_coin_account_info(instrument_id)
-    write_info('sell coin, account_info: ' + coin_account, file_transaction)
     coin_available = int(float(coin_account['currency:' + currency.upper()]['available']))
     if coin_available > 0:
-        sell_order_id = leverAPI.lever_sell_FOK(instrument_id, coin_available, latest_price)
+        write_info_into_file('start to sell %s: %d' % (currency, coin_available), file_transaction)
+        sell_order_id = leverAPI.lever_sell_market(instrument_id, coin_available)
+        time.sleep(1)
         if sell_order_id:
-            sell_info = '杠杆卖出%s成功, num: %d, price: %.3f' % (instrument_id.split(INSTRUMENT_ID_LINKER)[0],
-                                                            coin_available, latest_price)
-            write_info(sell_info, file_transaction)
-            thread.start_new_thread(send_email, (sell_info,))
-            return True
+            write_info_into_file('sell order id:%s' % str(sell_order_id), file_transaction)
+            sell_order_info = leverAPI.get_order_info(sell_order_id, instrument_id)
+            if sell_order_info['state'] == '2':
+                lever_sell_price = float(sell_order_info['price_avg'])
+                sell_info = '杠杆卖出成功，num: ' + str(coin_available) + ', price: ' + str(lever_sell_price)
+                print(sell_info)
+                write_info_into_file(sell_info, file_transaction)
+                thread.start_new_thread(send_email, (sell_info,))
+                return True
+            else:
+                leverAPI.revoke_order(instrument_id, sell_order_id)
+                return False
         else:
             return False
-    return False
+    return True
 
 
 def buy_coin():
+    currency = instrument_id.split(INSTRUMENT_ID_LINKER)[0]
     account_info = leverAPI.get_coin_account_info(instrument_id)
+    time.sleep(0.1)
     usdt_available = float(account_info['currency:USDT']['available'])
-    amount = math.floor(usdt_available / latest_price)
-    if amount > 0:
-        buy_order_id = False
-        while not buy_order_id:
-            buy_order_id = leverAPI.lever_buy_FOK(instrument_id, amount, latest_price)
-            time.sleep(0.1)
-        write_info('买入成功' + instrument_id.split(INSTRUMENT_ID_LINKER)[0], file_transaction)
-        return buy_order_id
-    thread.start_new_thread(send_email, ('usdt余额不足，买入失败', ))
-    return False
+    amount = float(round(usdt_available / latest_price, 1))
+    if usdt_available <= 1:
+        write_info_into_file("buy coin: 无可用usdt", file_transaction)
+        return True
+    write_info_into_file('可买入num: ' + str(amount), file_transaction)
+    buy_order_id = leverAPI.lever_buy_market(instrument_id, amount, usdt_available)
+    write_info_into_file('buy_order_id: %s' % buy_order_id, file_transaction)
+    if buy_order_id:
+        time.sleep(1)
+        buy_order_info = leverAPI.get_order_info(buy_order_id, instrument_id)
+        if buy_order_info['state'] == '2':
+            write_info_into_file('买入成功%s, num: %d' % (currency, amount), file_transaction)
+            return True
+        else:
+            leverAPI.revoke_order(instrument_id, buy_order_id)
+            time.sleep(0.2)
+            return False
+    else:
+        return False
 
 
 def repay_coin():
@@ -131,7 +146,7 @@ def repay_coin():
     while amount > 0:
         currency = instrument_id.split(INSTRUMENT_ID_LINKER)[0].upper()
         account_info = leverAPI.get_coin_account_info(instrument_id)
-        write_info('还币, account_info:' + account_info, file_transaction)
+        write_info_into_file('还币, account_info:' + account_info, file_transaction)
         amount = float(account_info['currency:' + currency]['borrowed'])
         if amount > 0:
             repay_result = leverAPI.repay_coin(instrument_id, currency, amount)
@@ -145,18 +160,20 @@ def repay_coin():
 
 
 def stop_lever_less():
-    buy_coin()
-    return repay_coin()
+    if buy_coin():
+        return repay_coin()
+    else:
+        return False
 
 
-def write_info(info, file_name):
+def write_info_into_file(info, file_name):
     print(info)
     with codecs.open(file_name, 'a+', 'utf-8') as f:
         f.writelines(info + '\n')
 
 
 def on_message(ws, message):
-    global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min,\
+    global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, instrument_id, \
         deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, freeze_time, lever_sell_time, lever_sell_price
 
     ts = time.time()
@@ -165,7 +182,6 @@ def on_message(ws, message):
     message = bytes.decode(inflate(message), 'utf-8')  # data decompress
     json_message = json.loads(message)
     for json_data in json_message['data']:
-        print(json_data)
         latest_price = float(json_data['price'])
         deal_entity = DealEntity(json_data['trade_id'], latest_price, round(float(json_data['size']), 3), ts,
                                  json_data['side'])
@@ -193,6 +209,7 @@ def on_message(ws, message):
                 lever_sell_time = int(ts)
                 lever_sell_price = latest_price
         if less == 1:
+            print('做空时间：%s，价格：%.3f' % (timestamp2string(lever_sell_time), lever_sell_price))
             if price_1m_change > 0 and int(ts) - lever_sell_time > 120:
                 if stop_lever_less():
                     less = 0
@@ -216,7 +233,7 @@ def on_message(ws, message):
             with codecs.open(file_deal, 'a+', 'UTF-8') as f:
                 f.writelines(write_lines)
                 write_lines = []
-
+        print('less: %d' % less)
         print(price_info + '\r\n' + vol_info + '\r\n' + rate_info + u', ' + now_time)
 
 

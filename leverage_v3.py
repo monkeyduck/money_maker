@@ -41,9 +41,10 @@ class LeverageAPI(Client):
        return self._request_with_params(GET, LEVER_LEDGER_RECORD + str(symbol) + '/ledger', params, cursor=True)
 
     # take order
-    def take_order(self, otype, side, instrument_id, size, margin_trading=1, client_oid='', price='', funds='', order_type='0',):
+    def take_order(self, otype, side, instrument_id, size, margin_trading=1, notional='', client_oid='', price='', funds='',
+                   order_type=0,):
         params = {'type': otype, 'side': side, 'instrument_id': instrument_id, 'size': size, 'client_oid': client_oid,
-                  'price': price, 'funds': funds, 'margin_trading': margin_trading, 'order_type': order_type}
+                  'price': price, 'funds': funds, 'margin_trading': margin_trading, 'order_type': order_type, 'notional':notional}
         return self._request_with_params(POST, LEVER_ORDER, params)
 
     # revoke order
@@ -99,6 +100,18 @@ class LeverageAPI(Client):
                 ret = self.take_order('market', 'sell', instrument_id, amount, margin_trading=2, )
                 if ret and ret['result']:
                     return ret["order_id"]
+            return False
+        except Exception as e:
+            print(repr(e))
+            return False
+
+    def lever_buy_market(self, instrument_id, amount, notional):
+        try:
+            ret = self.take_order(otype='market', side='buy', instrument_id=instrument_id, size=amount,
+                                  notional=notional, margin_trading=2, )
+            print(ret)
+            if ret and ret['result']:
+                return ret["order_id"]
             return False
         except Exception as e:
             print(repr(e))
