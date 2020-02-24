@@ -26,11 +26,13 @@ ind_10s = Indicator(10)
 ind_1s = Indicator(1)
 ind_3m = Indicator(180)
 less = 0
-
+more = 0
 last_avg_price = 0
 
 lever_sell_time = 0
 lever_sell_price = 0
+lever_more_time = 0
+lever_more_price = 0
 
 freeze_time = 0
 write_lines = []
@@ -51,22 +53,28 @@ def handle_deque(deq, entity, ts, ind):
 
 def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
     if ind_1min.vol > 300000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol \
-            and ind_3m.vol > 400000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
-            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05:
+            and ind_3m.vol > 500000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
+            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.01:
         return True
-    elif ind_1min.vol > 200000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
-            and ind_3m.vol > 300000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
-            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.05:
+    elif ind_1min.vol > 300000 and ind_1min.ask_vol > 2 * ind_1min.bid_vol \
+            and ind_3m.vol > 400000 and ind_3m.ask_vol > 2 * ind_3m.bid_vol \
+            and price_3m_change < price_1m_change < -0.3 and price_10s_change <= -0.01:
         return True
     return False
 
 
 def check_do_future_less_test(price_3m_change, price_1m_change, price_10s_change):
-    return True
-    # if ind_1min.vol > 3000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol \
-    #         and ind_3m.vol > 4000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
-    #         and price_3m_change < price_1m_change < -0.1 and price_10s_change <= -0.01:
-    #     return True
+    if ind_1min.vol > 100000 and ind_1min.ask_vol > 1.5 * ind_1min.bid_vol \
+            and ind_3m.vol > 140000 and ind_3m.ask_vol > 1.3 * ind_3m.bid_vol and -1.2 < price_1m_change \
+            and price_3m_change < price_1m_change < -0.1 and price_10s_change <= -0.01:
+        return True
+
+
+def check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
+    if ind_1min.vol > 100000 and ind_1min.bid_vol > 2 * ind_1min.ask_vol \
+            and ind_3m.vol > 150000 and ind_3m.bid_vol > 1.3 * ind_3m.ask_vol and 1 < price_1m_change \
+            and price_3m_change > price_1m_change > 0.2 and price_10s_change >= 0.01:
+        return True
 
 
 def do_lever_less():
@@ -74,11 +82,44 @@ def do_lever_less():
     return sell_coin()
 
 
+def do_lever_more():
+    borrow_usdt()
+    return buy_coin()
+
+
+def stop_lever_less():
+    if buy_coin():
+        return repay_coin(instrument_id.split(INSTRUMENT_ID_LINKER)[0].upper())
+    else:
+        return False
+
+
+def stop_lever_more():
+    if sell_coin():
+        return repay_coin("USDT")
+    else:
+        return False
+
+
 def borrow_coin():
     currency = instrument_id.split(INSTRUMENT_ID_LINKER)[0]
     query_available_result = leverAPI.query_lever_available(instrument_id)
     result = query_available_result[0]
     borrow_num = int(float(result['currency:' + currency.upper()]['available']))
+    if borrow_num > 0:
+        borrow_result = leverAPI.borrow_coin(instrument_id, currency, borrow_num)
+        if borrow_result and borrow_result['result']:
+            write_info_into_file('借币成功 %s，num: %s' % (currency, str(borrow_num)), file_transaction)
+            return borrow_num
+    else:
+        write_info_into_file("无可借币", file_transaction)
+
+
+def borrow_usdt():
+    currency = instrument_id.split(INSTRUMENT_ID_LINKER)[1]
+    query_available_result = leverAPI.query_lever_available(instrument_id)
+    result = query_available_result[0]
+    borrow_num = int(float(result['currency:USDT']['available']))
     if borrow_num > 0:
         borrow_result = leverAPI.borrow_coin(instrument_id, currency, borrow_num)
         if borrow_result and borrow_result['result']:
@@ -116,6 +157,7 @@ def sell_coin():
 
 
 def buy_coin():
+    global lever_more_price
     currency = instrument_id.split(INSTRUMENT_ID_LINKER)[0]
     account_info = leverAPI.get_coin_account_info(instrument_id)
     time.sleep(0.1)
@@ -131,7 +173,10 @@ def buy_coin():
         time.sleep(1)
         buy_order_info = leverAPI.get_order_info(buy_order_id, instrument_id)
         if buy_order_info['state'] == '2':
-            write_info_into_file('买入成功%s, num: %d' % (currency, amount), file_transaction)
+            buy_info = '杠杆买入成功%s, num: %d' % (currency, amount)
+            write_info_into_file(buy_info, file_transaction)
+            thread.start_new_thread(send_email, (buy_info, ))
+            lever_more_price = float(buy_order_info['price_avg'])
             return True
         else:
             leverAPI.revoke_order(instrument_id, buy_order_id)
@@ -141,29 +186,22 @@ def buy_coin():
         return False
 
 
-def repay_coin():
+def repay_coin(currency_upper):
     amount = 1
     while amount > 0:
-        currency = instrument_id.split(INSTRUMENT_ID_LINKER)[0].upper()
         account_info = leverAPI.get_coin_account_info(instrument_id)
-        write_info_into_file('还币, account_info:' + account_info, file_transaction)
-        amount = float(account_info['currency:' + currency]['borrowed'])
+        amount = float(account_info['currency:' + currency_upper]['borrowed'])
+        write_info_into_file("还币: " + str(amount), file_transaction)
         if amount > 0:
-            repay_result = leverAPI.repay_coin(instrument_id, currency, amount)
+            repay_result = leverAPI.repay_coin(instrument_id, currency_upper, amount)
             if repay_result and repay_result['result']:
+                write_info_into_file('还币成功，num: ' + str(amount), file_transaction)
                 return True
             else:
-                thread.start_new_thread(send_email, ('Warning: 尚有欠币未还：' + str(amount),))
+                thread.start_new_thread(send_email, ('Warning: 尚有' + currency_upper + '欠币未还：' + str(amount),))
                 return True
         else:
             return True
-
-
-def stop_lever_less():
-    if buy_coin():
-        return repay_coin()
-    else:
-        return False
 
 
 def write_info_into_file(info, file_name):
@@ -174,7 +212,8 @@ def write_info_into_file(info, file_name):
 
 def on_message(ws, message):
     global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, instrument_id, \
-        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, freeze_time, lever_sell_time, lever_sell_price
+        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, freeze_time, lever_sell_time, lever_sell_price, \
+        lever_more_price, lever_more_time, more
 
     ts = time.time()
     now_time = timestamp2string(ts)
@@ -203,20 +242,29 @@ def on_message(ws, message):
 
         # 做空
         if less == 0 and price_change_3m_ago > -5 \
-                and check_do_future_less_test(price_3m_change, price_1m_change, price_10s_change):
+                and check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
             if do_lever_less():
                 less = 1
                 lever_sell_time = int(ts)
-                lever_sell_price = latest_price
         if less == 1:
             print('做空时间：%s，价格：%.3f' % (timestamp2string(lever_sell_time), lever_sell_price))
-            if price_1m_change > 0 and int(ts) - lever_sell_time > 120:
+            if price_1m_change > 0 and int(ts) - lever_sell_time > 60:
                 if stop_lever_less():
                     less = 0
 
-            elif int(ts) - lever_sell_time > 60 and latest_price > lever_sell_price:
+            elif int(ts) - lever_sell_time > 30 and latest_price > lever_sell_price:
                 if stop_lever_less():
                     less = 0
+
+        elif more == 1:
+            print('做多时间：%s，价格：%.3f' % (timestamp2string(lever_more_time), lever_more_price))
+            if price_1m_change < 0 and int(ts) - lever_sell_time > 120:
+                if stop_lever_more():
+                    more = 0
+
+            elif int(ts) - lever_sell_time > 60 and latest_price < lever_more_price:
+                if stop_lever_more():
+                    more = 0
 
         price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
                                         u'3min_price: %.4f' % (latest_price, avg_3s_price, avg_10s_price, avg_min_price,
@@ -233,7 +281,7 @@ def on_message(ws, message):
             with codecs.open(file_deal, 'a+', 'UTF-8') as f:
                 f.writelines(write_lines)
                 write_lines = []
-        print('less: %d' % less)
+        print('less: %d, more: %d' % (less, more))
         print(price_info + '\r\n' + vol_info + '\r\n' + rate_info + u', ' + now_time)
 
 
