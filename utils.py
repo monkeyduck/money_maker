@@ -10,6 +10,7 @@ import base64
 import datetime
 import consts as c
 import time
+import codecs
 
 
 def sign(message, secretKey):
@@ -92,6 +93,12 @@ def timestamp2string(ts):
         return str1
     except Exception as e:
         return ts
+
+
+def write_info_into_file(info, file_name):
+    print(info)
+    with codecs.open(file_name, 'a+', 'utf-8') as f:
+        f.writelines(timestamp2string(time.time()) + ' ' + info + '\n')
 
 
 def cal_rate(cur_price, last_price):

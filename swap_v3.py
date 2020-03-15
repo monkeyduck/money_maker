@@ -1,22 +1,8 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
-import json
-import math
-from utils import send_email, timestamp2string
-import time
-import codecs
-import traceback
-import os
-from entity import Coin
-try:
-    import thread
-except ImportError:
-    import _thread as thread
-
-
-from .client import Client
-from .consts import *
+from client_v3 import Client
+from consts import *
 
 
 class SwapAPI(Client):
@@ -55,8 +41,9 @@ class SwapAPI(Client):
             params['limit'] = limit
         return self._request_with_params(GET, SWAP_ACCOUNTS+'/'+str(instrument_id)+'/ledger', params)
 
-    def take_order(self, instrument_id, size, otype, price, client_oid, match_price):
-        params = {'instrument_id': instrument_id, 'size': size, 'type': otype, 'price': price}
+    def take_order(self, instrument_id, size, type, order_type, price, client_oid, match_price):
+        params = {'instrument_id': instrument_id, 'size': size, 'type': type, 'order_type': order_type,
+                  'price': price}
         if client_oid:
             params['client_oid'] = client_oid
         if match_price:

@@ -3,7 +3,7 @@
 
 import os
 from collections import deque
-INSTRUMENT_ID_LINKER = '_'
+INSTRUMENT_ID_LINKER = '-'
 
 
 def handle_deque(deq, entity, ts, ind):

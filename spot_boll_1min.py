@@ -5,15 +5,13 @@ try:
     import thread
 except ImportError:
     import _thread as thread
-from utils import timestamp2string, cal_rate, inflate, string2timestamp
-from strategy import get_spot_macd, check_trend, get_spot_boll
-from entity import Coin, Indicator, DealEntity
-from trade_spot_v3 import sell_all_position, buy_all_position
-from monitor_etc_depth import SpotMaker
+from utils import timestamp2string
+from strategy import get_spot_boll
+from entity import Coin
+from monitor.monitor_etc_depth import SpotMaker
 import time
 from config_strict import spotAPI
 import traceback
-import codecs
 
 # 默认币种handle_deque
 coin = Coin("etc", "usdt")

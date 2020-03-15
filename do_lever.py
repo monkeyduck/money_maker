@@ -7,6 +7,8 @@ except ImportError:
     import _thread as thread
 from utils import timestamp2string, cal_rate, inflate, send_email
 from entity import Coin, Indicator, DealEntity, INSTRUMENT_ID_LINKER
+from trade_v3 import buyin_less, sell_less, ensure_buyin_less, ensure_sell_less, get_latest_future_price, buyin_more, \
+    sell_more, ensure_buyin_more, ensure_sell_more
 import time
 import json
 import traceback
@@ -14,7 +16,6 @@ from collections import deque
 import websocket
 import codecs
 import sys
-import math
 
 deque_min = deque()
 deque_10s = deque()
@@ -309,7 +310,7 @@ if __name__ == '__main__':
         file_transaction, file_deal = coin.gen_file_name()
         config_file = sys.argv[2]
         if config_file == 'config_mother':
-            from config_mother import leverAPI
+            from config_mother import leverAPI, futureAPI
         # elif config_file == 'config_son1':
         #     from config_son1 import spotAPI, okFuture, futureAPI
         # elif config_file == 'config_son3':
