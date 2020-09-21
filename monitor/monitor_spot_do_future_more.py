@@ -26,7 +26,7 @@ deque_5m = deque()
 latest_price = 0
 ind_1min = Indicator(60)
 ind_10s = Indicator(10)
-ind_1s = Indicator(1)
+ind_3s = Indicator(1)
 ind_3m = Indicator(180)
 ind_5m = Indicator(300)
 less = 0
@@ -86,7 +86,7 @@ def check_do_future_more(price_3m_change, price_1m_change, price_10s_change):
 
 def on_message(ws, message):
     global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min,\
-        deque_3m, deque_5m, ind_1s, ind_10s, ind_1min, ind_3m, ind_5m, write_lines, last_3min_macd_ts, new_macd, lessless,\
+        deque_3m, deque_5m, ind_3s, ind_10s, ind_1min, ind_3m, ind_5m, write_lines, last_3min_macd_ts, new_macd, lessless,\
         future_buy_time, buyin_price_spot, moremore, freeze_time
 
     ts = time.time()

@@ -15,18 +15,20 @@ import websocket
 import codecs
 import sys
 
-deque_min = deque()
-deque_10s = deque()
+SWAP_SIZE = 1
 deque_3s = deque()
+deque_10s = deque()
+deque_min = deque()
 deque_3m = deque()
+deque_15m = deque()
 latest_price = 0
-ind_1min = Indicator(60)
+ind_3s = Indicator(3)
 ind_10s = Indicator(10)
-ind_3s = Indicator(1)
+ind_1min = Indicator(60)
 ind_3m = Indicator(180)
+ind_15m = Indicator(900)
 less = 0
 more = 0
-last_avg_price = 0
 
 lever_sell_time = 0
 lever_sell_price = 0
@@ -45,6 +47,133 @@ freeze_time = 0
 write_lines = []
 
 
+def check_more_or_less():
+    return 'more'
+
+
+def main_process():
+    while True:
+        time.sleep(1)
+        ts = time.time()
+        now_time = timestamp2string(ts)
+        if less == 0 and more == 0:
+            direct = check_more_or_less()
+            #横盘做多
+            if direct == 'more':
+                more_id = do_swap_more()
+                if more_id:
+
+            #横盘做空
+            elif direct == 'less':
+
+            else:
+                continue
+
+            profit_rate_list = []
+            more_id, less_id = do_more_and_less_same_time()
+            while more_id and less_id:
+                time.sleep(0.2)
+                if more == 0:
+                    swap_order_info = swapAPI.get_order_info(swap_instrument_id, more_id)
+                    write_info_into_file('做多 order info: ' + str(swap_order_info), file_transaction)
+                    if swap_order_info['state'] == '2':
+                        more = 1
+                        swap_more_time = int(ts)
+                        swap_more_price = float(swap_order_info['price_avg'])
+                        write_info_into_file('做多订单成交，成交信息：' + str(swap_order_info), file_transaction)
+                        thread.start_new_thread(send_email, ('合约做多, 价格：' + str(swap_more_price),))
+                    elif swap_order_info['state'] == '-1':
+                        more = -1
+                if less == 0:
+                    swap_order_info = swapAPI.get_order_info(swap_instrument_id, less_id)
+                    if swap_order_info['state'] == '2':
+                        less = 1
+                        swap_less_time = int(ts)
+                        swap_less_price = float(swap_order_info['price_avg'])
+                        write_info_into_file('做空订单成交，成交信息：' + str(swap_order_info), file_transaction)
+                        thread.start_new_thread(send_email, ('合约做空，价格：' + str(swap_less_price),))
+                    elif swap_order_info['state'] == '-1':
+                        less = -1
+
+                if more == 1 and less == 1:
+                    write_info_into_file('多空订单均成交！做多价：' + str(swap_more_price) + ',做空价：' + str(swap_less_price),
+                                         file_transaction)
+                    break
+                elif more == -1 and less == -1:
+                    write_info_into_file('多空订单均已撤单', file_transaction)
+                    more = 0
+                    less = 0
+                    break
+
+        # 做空单卖出，只剩做多单
+        elif less == 0 and more == 1:
+            position_info = swapAPI.get_specific_position(swap_instrument_id)
+            for pos in position_info['holding']:
+                if pos['side'] == 'long':
+                    margin = float(pos['margin'])
+                    more_profit = float(pos['unrealized_pnl'])
+                    available = int(pos['avail_position'])
+                    profit_rate = round(more_profit / margin * 100, 2)
+                    max_profit_rate = max(max_profit_rate, profit_rate)
+                    print('最大收益率：%.2f%%, 做多收益%.4f个%s,收益率：%.2f%%' % (max_profit_rate, more_profit,
+                                                                    coin_name.upper(), profit_rate))
+                    if profit_rate < max_profit_rate - MAX_WITHDRAW_RATE:
+                        if stop_swap_more(available):
+                            more = 0
+
+        elif less == 1 and more == 0:
+            position_info = swapAPI.get_specific_position(swap_instrument_id)
+            for pos in position_info['holding']:
+                if pos['side'] == 'short':
+                    margin = float(pos['margin'])
+                    more_profit = float(pos['unrealized_pnl'])
+                    available = int(pos['avail_position'])
+                    profit_rate = round(more_profit / margin * 100, 2)
+                    max_profit_rate = max(max_profit_rate, profit_rate)
+                    print('最大收益率：%.2f%%, 做空收益%.4f个%s,收益率：%.2f%%' % (max_profit_rate, more_profit,
+                                                                    coin_name.upper(), profit_rate))
+                    if profit_rate < max_profit_rate - MAX_WITHDRAW_RATE:
+                        if stop_swap_less(available):
+                            less = 0
+
+        elif less == 1 and more == 1:
+            more_profit_rate = 0
+            less_profit_rate = 0
+            more_profit = 0
+            less_profit = 0
+            available = SWAP_SIZE
+            position_info = swapAPI.get_specific_position(swap_instrument_id)
+            for pos in position_info['holding']:
+                if pos['side'] == 'long':
+                    margin = float(pos['margin'])
+                    more_profit = float(pos['unrealized_pnl'])
+                    available = int(pos['avail_position'])
+                    more_profit_rate = more_profit / margin * 100
+                if pos['side'] == 'short':
+                    margin = float(pos['margin'])
+                    less_profit = float(pos['unrealized_pnl'])
+                    available = int(pos['avail_position'])
+                    less_profit_rate = less_profit / margin * 100
+            print('做多收益%.4f个%s,收益率：%.2f%%, 做空收益%.4f个%s,收益率：%.2f%%' % (more_profit, coin_name.upper(),
+                                                                      more_profit_rate, less_profit, coin_name.upper(),
+                                                                      less_profit_rate))
+            profit_rate_list.append(max(more_profit_rate, less_profit_rate))
+            if len(profit_rate_list) > PROFIT_LENGTH:
+                profit_rate_list.pop(0)
+            avg_profit = np.mean(profit_rate_list)
+            print(now_time + ',过去%d分钟，平均正收益率：%.2f%%' % (int(PROFIT_LENGTH / 60), avg_profit))
+            if more_profit_rate < STOP_LOSS_PROFIT_RATE - avg_profit:
+                if stop_swap_more(available):
+                    max_profit_rate = less_profit_rate
+                    more = 0
+                    print('做多止损成交，做多收益率: %.2f%%, 做空收益率：%.2f%%' % (more_profit_rate, less_profit_rate))
+            if less_profit_rate < STOP_LOSS_PROFIT_RATE - avg_profit:
+                if stop_swap_less(available):
+                    max_profit_rate = more_profit_rate
+                    less = 0
+                    print('做空止损成交，做多收益率: %.2f%%, 做空收益率：%.2f%%' % (more_profit_rate, less_profit_rate))
+
+
 def handle_deque(deq, entity, ts, ind):
     while len(deq) > 0:
         left = deq.popleft()
@@ -56,6 +185,17 @@ def handle_deque(deq, entity, ts, ind):
     deq.append(entity)
     ind.add_price(entity)
     ind.add_vol(entity)
+
+
+def get_max_min_price(deq):
+    if len(deq) == 0:
+        return 0
+    else:
+        max_price = deq[0]
+        for index in range(1, len(deq)):
+            if deq[index] > max_price:
+                max_price = deq[index]
+        return max_price
 
 
 def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
@@ -97,9 +237,8 @@ def init_swap():
 
 
 def on_message(ws, message):
-    global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, instrument_id, \
-        deque_3m, ind_3s, ind_10s, ind_1min, ind_3m, write_lines, freeze_time, swap_less_time, \
-        swap_more_price, swap_more_time, more, swap_more_price, swap_less_price, swap_latest_price
+    global latest_price, deque_3s, deque_10s, deque_min, deque_3m, deque_15m, \
+        ind_3s, ind_10s, ind_1min, ind_3m, ind_15m, write_lines, swap_latest_price
 
     ts = time.time()
     now_time = timestamp2string(ts)
@@ -115,12 +254,13 @@ def on_message(ws, message):
         deal_entity = DealEntity(json_data['trade_id'], latest_price, round(float(json_data['size']), 3), ts,
                                  json_data['side'])
 
-        handle_deque(deque_3s, deal_entity, ts, ind_1s)
+        handle_deque(deque_3s, deal_entity, ts, ind_3s)
         handle_deque(deque_10s, deal_entity, ts, ind_10s)
         handle_deque(deque_min, deal_entity, ts, ind_1min)
         handle_deque(deque_3m, deal_entity, ts, ind_3m)
+        handle_deque(deque_15m, deal_entity, ts, ind_15m)
 
-        avg_3s_price = ind_1s.cal_avg_price()
+        avg_3s_price = ind_3s.cal_avg_price()
         avg_10s_price = ind_10s.cal_avg_price()
         avg_min_price = ind_1min.cal_avg_price()
         avg_3m_price = ind_3m.cal_avg_price()
@@ -129,62 +269,13 @@ def on_message(ws, message):
         price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
         price_change_3m_ago = cal_rate(latest_price, deque_3m[0].price)
 
-        # 做空
-        if less == 0 and check_do_future_less_test(price_3m_change, price_1m_change, price_10s_change):
-            i = 1
-            while True:
-                swap_less_order_id = do_swap_less()
-                write_info_into_file('第' + str(i) + '次做空尝试, id: ' + str(swap_less_order_id), file_transaction)
-                i += 1
-                if swap_less_order_id:
-                    swap_order_info = swapAPI.get_order_info(swap_instrument_id, swap_less_order_id)
-                    write_info_into_file('做空 order info: ' + str(swap_order_info), file_transaction)
-                    if swap_order_info['state'] == '2':
-                        less = 1
-                        swap_less_time = int(ts)
-                        swap_less_price = float(swap_order_info['price_avg'])
-                        thread.start_new_thread(send_email, ('合约做空，价格：' + str(swap_less_price),))
-                        break
-                    elif swap_order_info['state'] == '-1':
-                        continue
-                    else:
-                        swapAPI.revoke_order(swap_less_order_id, swap_instrument_id)
-
-        if more == 0 and check_do_future_more_test(price_3m_change, price_1m_change, price_10s_change):
-            i = 1
-            while True:
-                swap_more_order_id = do_swap_more()
-                write_info_into_file('第' + str(i) + '次做多尝试, id: ' + str(swap_more_order_id), file_transaction)
-                i += 1
-                if swap_more_order_id:
-                    swap_order_info = swapAPI.get_order_info(swap_instrument_id, swap_more_order_id)
-                    write_info_into_file('做多 order info: ' + str(swap_order_info), file_transaction)
-                    if swap_order_info['state'] == '2':
-                        more = 1
-                        swap_more_time = int(ts)
-                        swap_more_price = float(swap_order_info['price_avg'])
-                        thread.start_new_thread(send_email, ('合约做多, 价格：' + str(swap_more_price),))
-                        break
-                    elif swap_order_info['state'] == '-1':
-                        continue
-                    else:
-                        swapAPI.revoke_order(swap_more_order_id, swap_instrument_id)
-        if less == 1:
-            if int(ts) - swap_less_time > 60 and price_1m_change > 0.1:
-                if stop_swap_less():
-                    less = 0
-
-        elif more == 1:
-            if int(ts) - swap_more_time > 60 and price_1m_change < -0.1:
-                if stop_swap_more():
-                    more = 0
         price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
                                         u'3min_price: %.4f' % (latest_price, avg_3s_price, avg_10s_price, avg_min_price,
                                                                avg_3m_price)
         vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f, ' \
                    u'3s_ask_vol: %.3f, 3s_bid_vol: %.3f, 3min vol: %.3f, 3min_ask_vol: %.3f, 3min_bid_vol: %.3f' \
-                   % (deal_entity.amount, ind_1s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
-                      ind_1s.ask_vol, ind_1s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
+                   % (deal_entity.amount, ind_3s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
+                      ind_3s.ask_vol, ind_3s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
         rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 3min_rate: %.2f%%' \
                     % (price_10s_change, price_1m_change, price_3m_change)
         print_message = price_info + u', ' + vol_info + u', ' + rate_info + u', ' + now_time + '\r\n'
@@ -198,7 +289,7 @@ def on_message(ws, message):
 
 
 def do_swap_more():
-    swap_price_latest = float(swapAPI.get_specific_ticker(swap_instrument_id)['best_ask'])
+    swap_price_latest = float(swapAPI.get_specific_ticker(swap_instrument_id)['best_bid'])
     # take_order(self, instrument_id, size, type, order_type, price, client_oid, match_price):
     size = swap_size
     write_info_into_file('ready to swap more, size :' + str(size), file_transaction)
@@ -418,6 +509,7 @@ if __name__ == '__main__':
         else:
             print('输入config_file有误，请输入config_mother or config_son1 or config_son3')
             sys.exit()
+        thread.start_new_thread(main_process, ())
         while True:
             ws = websocket.WebSocketApp("wss://real.OKEx.com:8443/ws/v3?compress=true",
                                         on_message=on_message,

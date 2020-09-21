@@ -24,7 +24,7 @@ deque_3m = deque()
 latest_price = 0
 ind_1min = Indicator(60)
 ind_10s = Indicator(10)
-ind_1s = Indicator(1)
+ind_3s = Indicator(1)
 ind_3m = Indicator(180)
 less = 0
 lessless = 0
@@ -148,7 +148,7 @@ def on_message(ws, message):
     if 'pong' in message or 'addChannel' in message:
         return
     global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, future_buy_price,\
-        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, lessless,\
+        deque_3m, ind_3s, ind_10s, ind_1min, ind_3m, write_lines, lessless,\
         future_buy_time, spot_buy_time, spot_sell_price, spot_buy_price, lessmore, future_more_buy_price
     jmessage = json.loads(message)
 

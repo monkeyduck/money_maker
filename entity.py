@@ -163,6 +163,8 @@ class Indicator:
         self.price -= deal_entity.price
 
 
+
+
 class Order:
     def __init__(self, order_id, price, amount, type, order_time):
         self.order_id = order_id

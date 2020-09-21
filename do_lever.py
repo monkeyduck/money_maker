@@ -24,7 +24,7 @@ deque_3m = deque()
 latest_price = 0
 ind_1min = Indicator(60)
 ind_10s = Indicator(10)
-ind_1s = Indicator(1)
+ind_3s = Indicator(1)
 ind_3m = Indicator(180)
 less = 0
 more = 0
@@ -213,7 +213,7 @@ def write_info_into_file(info, file_name):
 
 def on_message(ws, message):
     global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, instrument_id, \
-        deque_3m, ind_1s, ind_10s, ind_1min, ind_3m, write_lines, freeze_time, lever_sell_time, lever_sell_price, \
+        deque_3m, ind_3s, ind_10s, ind_1min, ind_3m, write_lines, freeze_time, lever_sell_time, lever_sell_price, \
         lever_more_price, lever_more_time, more
 
     ts = time.time()
