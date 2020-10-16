@@ -213,7 +213,7 @@ def on_close(ws):
 
 def on_open(ws):
     print("websocket connected...")
-    ws.send("{'event':'addChannel','channel':'ok_sub_spot_%s_usdt_deals'}" % coin.name)
+    ws.send("{\"op\": \"subscribe\", \"args\": [\"spot/trade:%s-USDT\"]}" % (coin.name.upper()))
 
 
 if __name__ == '__main__':
@@ -236,7 +236,7 @@ if __name__ == '__main__':
             sys.exit()
 
         while True:
-            ws = websocket.WebSocketApp("wss://real.okex.com:10442/ws/v3?compress=true",
+            ws = websocket.WebSocketApp("wss://real.okex.com:8443/ws/v3",
                                         on_message=on_message,
                                         on_error=on_error,
                                         on_close=on_close)
