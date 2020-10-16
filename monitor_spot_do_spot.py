@@ -74,8 +74,6 @@ def check_do_future_less(price_3m_change, price_1m_change, price_10s_change):
 
 def on_message(ws, message):
     message = bytes.decode(inflate(message), 'utf-8')  # data decompress
-    if 'pong' in message or 'addChannel' in message:
-        return
     global latest_price, last_avg_price, less, deque_3s, deque_10s, deque_min, future_buy_price,\
         deque_3m, ind_3s, ind_10s, ind_1min, ind_3m, write_lines, last_3min_macd_ts, new_macd, lessless,\
         future_buy_time, spot_buy_time, spot_sell_price, spot_buy_price, lessmore, future_more_buy_price
@@ -94,6 +92,7 @@ def on_message(ws, message):
 
     for each_message in jmessage:
         for jdata in each_message['data']:
+            print(jdata)
             latest_price = float(jdata[1])
             deal_entity = DealEntity(jdata[0], float(jdata[1]), round(float(jdata[2]), 3), ts, jdata[4])
 
