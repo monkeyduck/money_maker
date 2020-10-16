@@ -116,6 +116,13 @@ def cal_weighted(prices, weights):
         w += prices[i] * weights[i]
     return w
 
+
+def get_timestamp():
+    now = datetime.datetime.now()
+    t = now.isoformat("T", "milliseconds")
+    return t + "Z"
+
+
 def send_email(message):
     # 第三方 SMTP 服务
     mail_host = "smtp.163.com"  # 设置服务器
