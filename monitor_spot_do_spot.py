@@ -201,7 +201,8 @@ def process_message(message):
 
 
 def run_websocket(coin_name):
-    channels = ["swap/trade:%s-USD-SWAP" % coin_name.upper()]
+    channels = ["swap/trade:" + coin_name.upper() + "-USD-SWAP"]
+    print(channels)
     url = 'wss://real.okex.com:8443/ws/v3'
 
     loop = asyncio.get_event_loop()
@@ -245,8 +246,6 @@ async def subscribe_without_login(url, channels):
                     res = inflate(res_b).decode('utf-8')
                     print(timestamp + res)
                     process_message(res)
-
-
         except Exception as e:
             timestamp = get_timestamp()
             print(timestamp + "连接断开，正在重连……")
