@@ -208,6 +208,7 @@ def change(num_old):
 
 # subscribe channels un_need login
 async def subscribe_without_login(url, channels):
+    print('subscribe without login')
     l = []
     while True:
         try:
@@ -683,6 +684,7 @@ if __name__ == '__main__':
             print('输入config_file有误，请输入config_mother or config_son1 or config_son3')
             sys.exit()
         channels = ["spot/order:%s-USDT" % coin_name.upper()]
+        print(channels)
         loop = asyncio.get_event_loop()
 
         # 公共数据 不需要登录（行情，K线，交易数据，资金费率，限价范围，深度数据，标记价格等频道）
