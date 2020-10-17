@@ -182,7 +182,8 @@ def change(num_old):
 
 
 def process_response(res):
-    print(res)
+    for each_data in res["data"]:
+        print("each_data:" + each_data)
 
 
 # subscribe channels un_need login
@@ -384,7 +385,7 @@ async def unsubscribe_without_login(url, channels, timestamp):
 
 # channels = ["spot/candle60s:BTC-USDT"]
 # 公共-交易频道
-# channels = ["spot/trade:BTC-USDT"]
+channels = ["spot/trade:BTC-USDT"]
 # 公共-K线频道
 
 api_key = ""
