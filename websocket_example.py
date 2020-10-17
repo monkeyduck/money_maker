@@ -182,8 +182,14 @@ def change(num_old):
 
 
 def process_response(res):
-    for each_data in res["data"]:
-        print("each_data:" + each_data)
+    try:
+        print("res: " + res)
+        jmessage = json.loads(res)
+        print("jmessage: " + jmessage)
+        for each_data in jmessage["data"]:
+            print("each_data:" + each_data)
+    except Exception as e:
+        print(e)
 
 
 # subscribe channels un_need login
