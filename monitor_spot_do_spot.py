@@ -223,6 +223,7 @@ async def subscribe_without_login(url, channels):
             async with websockets.connect(url) as ws:
                 sub_param = {"op": "subscribe", "args": channels}
                 sub_str = json.dumps(sub_param)
+                print(sub_str)
                 await ws.send(sub_str)
 
                 while True:
