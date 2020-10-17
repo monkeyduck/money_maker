@@ -181,6 +181,14 @@ def change(num_old):
     return out
 
 
+def process_response(res):
+    jmessage = json.loads(res)
+    print(jmessage)
+    for each_message in jmessage:
+        for jdata in each_message['data']:
+            print("data:" + jdata)
+
+
 # subscribe channels un_need login
 async def subscribe_without_login(url, channels):
     l = []
@@ -211,7 +219,7 @@ async def subscribe_without_login(url, channels):
                     timestamp = get_timestamp()
                     res = inflate(res_b).decode('utf-8')
                     print(timestamp + res)
-
+                    process_response(res)
                     res = eval(res)
                     if 'event' in res:
                         continue

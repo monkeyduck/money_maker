@@ -1,13 +1,12 @@
 import asyncio
 import websockets
-import json
 import requests
 import dateutil.parser as dp
 import hmac
 import base64
 import zlib
 import datetime
-from utils import timestamp2string, cal_rate, inflate, get_timestamp, string2timestamp
+from utils import timestamp2string, cal_rate, inflate, get_timestamp
 from trade_spot_v3 import buy_all_position, sell_all_position, spot_buy
 from trade_v3 import buyin_less, sell_less, ensure_buyin_less, ensure_sell_less, get_latest_future_price, buyin_more, \
     sell_more, ensure_buyin_more, ensure_sell_more
