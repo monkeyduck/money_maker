@@ -181,17 +181,6 @@ def change(num_old):
     return out
 
 
-def process_response(res):
-    try:
-        print("res: " + res)
-        jmessage = json.loads(res)
-        print("jmessage: " + jmessage)
-        for each_data in jmessage["data"]:
-            print("each_data:" + each_data)
-    except Exception as e:
-        print(e)
-
-
 # subscribe channels un_need login
 async def subscribe_without_login(url, channels):
     l = []
@@ -221,9 +210,11 @@ async def subscribe_without_login(url, channels):
 
                     timestamp = get_timestamp()
                     res = inflate(res_b).decode('utf-8')
-                    print(timestamp + res)
-                    process_response(res)
+                    print("time:" + timestamp)
+
                     res = eval(res)
+                    print("response: " + res)
+
                     if 'event' in res:
                         continue
                     for i in res:
@@ -389,10 +380,6 @@ async def unsubscribe_without_login(url, channels, timestamp):
         res = inflate(res_1).decode('utf-8')
         print(timestamp + f"recv: {res}")
 
-# channels = ["spot/candle60s:BTC-USDT"]
-# 公共-交易频道
-channels = ["spot/trade:BTC-USDT"]
-# 公共-K线频道
 
 api_key = ""
 secret_key = ""
@@ -411,7 +398,11 @@ url = 'wss://real.okex.com:8443/ws/v3'
 # 用户交易频道
 # channels = ["spot/order:BTC-USDT"]
 # 公共-Ticker频道
-# channels = ["spot/ticker:BTC-USDT"]
+channels = ["spot/ticker:BTC-USDT"]
+# 公共-K线频道
+# channels = ["spot/candle60s:BTC-USDT"]
+# 公共-交易频道
+# channels = ["spot/trade:BTC-USDT"]
 # 公共-5档深度频道
 # channels = ["spot/depth5:BTC-USDT"]
 # 公共-400档深度频道
@@ -463,7 +454,7 @@ url = 'wss://real.okex.com:8443/ws/v3'
 # 公共-K线频道
 # channels = ["swap/candle60s:BTC-USD-SWAP"]
 # 公共-交易频道
-channels = ["swap/trade:BTC-USD-SWAP"]
+# channels = ["swap/trade:BTC-USD-SWAP"]
 # 公共-资金费率频道
 # channels = ["swap/funding_rate:BTC-USD-SWAP"]
 # 公共-限价频道
