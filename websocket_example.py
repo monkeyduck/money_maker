@@ -213,12 +213,12 @@ async def subscribe_without_login(url, channels):
                     print("time:" + timestamp)
 
                     res = eval(res)
-                    for each_data in res['data']:
-                        print(str(each_data))
 
                     if 'event' in res:
                         continue
                     for i in res:
+                        print("第" + str(i) + "ge: ")
+                        print(str(res[i]))
                         if 'depth' in res[i] and 'depth5' not in res[i]:
                             # 订阅频道是深度频道
                             if res['action'] == 'partial':
