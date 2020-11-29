@@ -215,74 +215,72 @@ async def subscribe_without_login(url, channels):
                     res = eval(res)
                     process(res)
 
-                    if 'event' in res:
-                        continue
-                    for i in res:
-                        print("第" + str(i) + "ge: ")
-                        print(str(res[i]))
-                        if 'depth' in res[i] and 'depth5' not in res[i]:
-                            # 订阅频道是深度频道
-                            if res['action'] == 'partial':
-                                for m in l:
-                                    if res['data'][0]['instrument_id'] == m['instrument_id']:
-                                        l.remove(m)
-                                # 获取首次全量深度数据
-                                bids_p, asks_p, instrument_id = partial(res, timestamp)
-                                d = {}
-                                d['instrument_id'] = instrument_id
-                                d['bids_p'] = bids_p
-                                d['asks_p'] = asks_p
-                                l.append(d)
-
-                                # 校验checksum
-                                checksum = res['data'][0]['checksum']
-                                # print(timestamp + '推送数据的checksum为：' + str(checksum))
-                                check_num = check(bids_p, asks_p)
-                                # print(timestamp + '校验后的checksum为：' + str(check_num))
-                                if check_num == checksum:
-                                    print("校验结果为：True")
-                                else:
-                                    print("校验结果为：False，正在重新订阅……")
-
-                                    # 取消订阅
-                                    await unsubscribe_without_login(url, channels, timestamp)
-                                    # 发送订阅
-                                    async with websockets.connect(url) as ws:
-                                        sub_param = {"op": "subscribe", "args": channels}
-                                        sub_str = json.dumps(sub_param)
-                                        await ws.send(sub_str)
-                                        timestamp = get_timestamp()
-                                        print(timestamp + f"send: {sub_str}")
-
-                            elif res['action'] == 'update':
-                                for j in l:
-                                    if res['data'][0]['instrument_id'] == j['instrument_id']:
-                                        # 获取全量数据
-                                        bids_p = j['bids_p']
-                                        asks_p = j['asks_p']
-                                        # 获取合并后数据
-                                        bids_p = update_bids(res, bids_p, timestamp)
-                                        asks_p = update_asks(res, asks_p, timestamp)
-
-                                        # 校验checksum
-                                        checksum = res['data'][0]['checksum']
-                                        # print(timestamp + '推送数据的checksum为：' + str(checksum))
-                                        check_num = check(bids_p, asks_p)
-                                        # print(timestamp + '校验后的checksum为：' + str(check_num))
-                                        if check_num == checksum:
-                                            print("校验结果为：True")
-                                        else:
-                                            print("校验结果为：False，正在重新订阅……")
-
-                                            # 取消订阅
-                                            await unsubscribe_without_login(url, channels, timestamp)
-                                            # 发送订阅
-                                            async with websockets.connect(url) as ws:
-                                                sub_param = {"op": "subscribe", "args": channels}
-                                                sub_str = json.dumps(sub_param)
-                                                await ws.send(sub_str)
-                                                timestamp = get_timestamp()
-                                                print(timestamp + f"send: {sub_str}")
+                    # if 'event' in res:
+                    #     continue
+                    # for i in res:
+                    #     if 'depth' in res[i] and 'depth5' not in res[i]:
+                    #         # 订阅频道是深度频道
+                    #         if res['action'] == 'partial':
+                    #             for m in l:
+                    #                 if res['data'][0]['instrument_id'] == m['instrument_id']:
+                    #                     l.remove(m)
+                    #             # 获取首次全量深度数据
+                    #             bids_p, asks_p, instrument_id = partial(res, timestamp)
+                    #             d = {}
+                    #             d['instrument_id'] = instrument_id
+                    #             d['bids_p'] = bids_p
+                    #             d['asks_p'] = asks_p
+                    #             l.append(d)
+                    #
+                    #             # 校验checksum
+                    #             checksum = res['data'][0]['checksum']
+                    #             # print(timestamp + '推送数据的checksum为：' + str(checksum))
+                    #             check_num = check(bids_p, asks_p)
+                    #             # print(timestamp + '校验后的checksum为：' + str(check_num))
+                    #             if check_num == checksum:
+                    #                 print("校验结果为：True")
+                    #             else:
+                    #                 print("校验结果为：False，正在重新订阅……")
+                    #
+                    #                 # 取消订阅
+                    #                 await unsubscribe_without_login(url, channels, timestamp)
+                    #                 # 发送订阅
+                    #                 async with websockets.connect(url) as ws:
+                    #                     sub_param = {"op": "subscribe", "args": channels}
+                    #                     sub_str = json.dumps(sub_param)
+                    #                     await ws.send(sub_str)
+                    #                     timestamp = get_timestamp()
+                    #                     print(timestamp + f"send: {sub_str}")
+                    #
+                    #         elif res['action'] == 'update':
+                    #             for j in l:
+                    #                 if res['data'][0]['instrument_id'] == j['instrument_id']:
+                    #                     # 获取全量数据
+                    #                     bids_p = j['bids_p']
+                    #                     asks_p = j['asks_p']
+                    #                     # 获取合并后数据
+                    #                     bids_p = update_bids(res, bids_p, timestamp)
+                    #                     asks_p = update_asks(res, asks_p, timestamp)
+                    #
+                    #                     # 校验checksum
+                    #                     checksum = res['data'][0]['checksum']
+                    #                     # print(timestamp + '推送数据的checksum为：' + str(checksum))
+                    #                     check_num = check(bids_p, asks_p)
+                    #                     # print(timestamp + '校验后的checksum为：' + str(check_num))
+                    #                     if check_num == checksum:
+                    #                         print("校验结果为：True")
+                    #                     else:
+                    #                         print("校验结果为：False，正在重新订阅……")
+                    #
+                    #                         # 取消订阅
+                    #                         await unsubscribe_without_login(url, channels, timestamp)
+                    #                         # 发送订阅
+                    #                         async with websockets.connect(url) as ws:
+                    #                             sub_param = {"op": "subscribe", "args": channels}
+                    #                             sub_str = json.dumps(sub_param)
+                    #                             await ws.send(sub_str)
+                    #                             timestamp = get_timestamp()
+                    #                             print(timestamp + f"send: {sub_str}")
         except Exception as e:
             timestamp = get_timestamp()
             print(timestamp + "连接断开，正在重连……")
