@@ -211,9 +211,9 @@ async def subscribe_without_login(url, channels):
                     timestamp = get_timestamp()
                     res = inflate(res_b).decode('utf-8')
                     print("time:" + timestamp)
+                    print("response: " + res)
 
                     res = eval(res)
-                    print("response: " + res)
 
                     if 'event' in res:
                         continue
