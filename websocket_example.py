@@ -402,11 +402,11 @@ url = 'wss://real.okex.com:8443/ws/v3'
 # 用户交易频道
 # channels = ["spot/order:BTC-USDT"]
 # 公共-Ticker频道
-channels = ["spot/ticker:BTC-USDT"]
+# channels = ["spot/ticker:BTC-USDT"]
 # 公共-K线频道
 # channels = ["spot/candle60s:BTC-USDT"]
 # 公共-交易频道
-# channels = ["spot/trade:BTC-USDT"]
+channels = ["spot/trade:BTC-USDT"]
 # 公共-5档深度频道
 # channels = ["spot/depth5:BTC-USDT"]
 # 公共-400档深度频道
