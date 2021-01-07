@@ -406,7 +406,7 @@ url = 'wss://real.okex.com:8443/ws/v3'
 # 公共-K线频道
 # channels = ["spot/candle60s:BTC-USDT"]
 # 公共-交易频道
-channels = ["spot/trade:BTC-USDT"]
+# channels = ["spot/trade:BTC-USDT"]
 # 公共-5档深度频道
 # channels = ["spot/depth5:BTC-USDT"]
 # 公共-400档深度频道
@@ -458,7 +458,7 @@ channels = ["spot/trade:BTC-USDT"]
 # 公共-K线频道
 # channels = ["swap/candle60s:BTC-USD-SWAP"]
 # 公共-交易频道
-# channels = ["swap/trade:BTC-USD-SWAP"]
+channels = ["swap/trade:BTC-USD-SWAP"]
 # 公共-资金费率频道
 # channels = ["swap/funding_rate:BTC-USD-SWAP"]
 # 公共-限价频道
