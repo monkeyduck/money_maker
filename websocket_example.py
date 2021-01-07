@@ -291,13 +291,15 @@ async def subscribe_without_login(url, channels):
 
 
 def process(res, timestamp):
-    trade_item = res['data'][0]
-    latest_price = float(trade_item['price'])
-    trade_id = str(trade_item['trade_id'])
-    size = float(trade_item['size'])
-    side = str(trade_item['side'])
-    deal_entity = DealEntity(trade_id, latest_price, size, timestamp, side)
-    print('detail:' + deal_entity.detail())
+    for i in res:
+        if i == 'data':
+            trade_item = res[i][0]
+            latest_price = float(trade_item['price'])
+            trade_id = str(trade_item['trade_id'])
+            size = float(trade_item['size'])
+            side = str(trade_item['side'])
+            deal_entity = DealEntity(trade_id, latest_price, size, timestamp, side)
+            print('detail:' + deal_entity.detail())
 
 
 # subscribe channels need login
