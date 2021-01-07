@@ -290,7 +290,7 @@ async def subscribe_without_login(url, channels):
 def process(res):
     for i in res:
         if i == 'data':
-            print(res[i])
+            print(res[i][0])
 
 # subscribe channels need login
 async def subscribe(url, api_key, passphrase, secret_key, channels):
