@@ -7,6 +7,8 @@ import hmac
 import base64
 import zlib
 import datetime
+from entity import Coin, Indicator, DealEntity
+
 
 
 def get_timestamp():
@@ -213,7 +215,7 @@ async def subscribe_without_login(url, channels):
                     print("time:" + timestamp)
 
                     res = eval(res)
-                    process(res)
+                    process(res, timestamp)
 
                     # if 'event' in res:
                     #     continue
@@ -287,15 +289,16 @@ async def subscribe_without_login(url, channels):
             print(e)
             continue
 
-def process(res):
-    for i in res:
-        if i == 'data':
-            trade_item = res[i][0]
-            latest_price = float(trade_item['price'])
-            trade_id = str(trade_item['trade_id'])
-            size = float(trade_item['size'])
-            side = str(trade_item['side'])
-            print("side : " + side + ", price: " + str(latest_price) + ", size: " + str(size))
+
+def process(res, timestamp):
+    trade_item = res['data'][0]
+    latest_price = float(trade_item['price'])
+    trade_id = str(trade_item['trade_id'])
+    size = float(trade_item['size'])
+    side = str(trade_item['side'])
+    deal_entity = DealEntity(trade_id, latest_price, size, timestamp, side)
+    print('detail:' + deal_entity.detail())
+
 
 # subscribe channels need login
 async def subscribe(url, api_key, passphrase, secret_key, channels):
