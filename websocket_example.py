@@ -7,8 +7,22 @@ import hmac
 import base64
 import zlib
 import datetime
+import time
+import codecs
 from entity import Coin, Indicator, DealEntity
+from utils import handle_deque, cal_rate
+from collections import deque
 
+
+deque_min = deque()
+deque_10s = deque()
+deque_3s = deque()
+deque_3m = deque()
+latest_price = 0
+ind_1min = Indicator(60)
+ind_10s = Indicator(10)
+ind_3s = Indicator(3)
+ind_3m = Indicator(180)
 
 
 def get_timestamp():
@@ -185,7 +199,6 @@ def change(num_old):
 
 # subscribe channels un_need login
 async def subscribe_without_login(url, channels):
-    l = []
     while True:
         try:
             async with websockets.connect(url) as ws:
@@ -300,6 +313,41 @@ def process(res, timestamp):
             side = str(trade_item['side'])
             deal_entity = DealEntity(trade_id, latest_price, size, timestamp, side)
             print('detail:' + deal_entity.detail())
+
+            ts = time.time()
+            handle_deque(deque_3s, deal_entity, ts, ind_3s)
+            handle_deque(deque_10s, deal_entity, ts, ind_10s)
+            handle_deque(deque_min, deal_entity, ts, ind_1min)
+            handle_deque(deque_3m, deal_entity, ts, ind_3m)
+
+            avg_3s_price = ind_3s.cal_avg_price()
+            avg_10s_price = ind_10s.cal_avg_price()
+            avg_min_price = ind_1min.cal_avg_price()
+            avg_3m_price = ind_3m.cal_avg_price()
+            price_10s_change = cal_rate(avg_3s_price, avg_10s_price)
+            price_1m_change = cal_rate(avg_3s_price, avg_min_price)
+            price_3m_change = cal_rate(avg_3s_price, avg_3m_price)
+
+            less = 0
+            holding_status = 'spot_less: %d' % less
+
+            price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
+                                            u'3min_price: %.4f' \
+                         % (latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_3m_price)
+            vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f, ' \
+                       u'3s_ask_vol: %.3f, 3s_bid_vol: %.3f, 3min vol: %.3f, 3min_ask_vol: %.3f, 3min_bid_vol: %.3f' \
+                       % (deal_entity.amount, ind_3s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
+                          ind_3s.ask_vol, ind_3s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
+            rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 3min_rate: %.2f%%' \
+                        % (price_10s_change, price_1m_change, price_3m_change)
+            write_info = holding_status + u', ' + price_info + u', ' + vol_info + u', ' + rate_info + u', ' + timestamp + '\r\n'
+            write_lines.append(write_info)
+            if len(write_lines) >= 100:
+                with codecs.open(file_deal, 'a+', 'UTF-8') as f:
+                    f.writelines(write_lines)
+                    write_lines = []
+
+            print(holding_status + '\r\n' + price_info + '\r\n' + vol_info + '\r\n' + rate_info + u', ' + timestamp)
 
 
 # subscribe channels need login
@@ -514,6 +562,8 @@ channels = ["swap/trade:BTC-USD-SWAP"]
 
 # WebSocket-获取系统升级状态
 # channels = ["system/status"]
+coin = Coin("btc", "usdt")
+file_transaction, file_deal = coin.gen_file_name()
 
 loop = asyncio.get_event_loop()
 

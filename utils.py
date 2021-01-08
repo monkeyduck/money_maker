@@ -158,6 +158,17 @@ def calc_stf(deal_entity, last_price, last_last_price):
     return 0
 
 
+def handle_deque(deq, entity, ts, ind):
+    while len(deq) > 0:
+        left = deq.popleft()
+        if float(left.time + ind.interval) > float(ts):
+            deq.appendleft(left)
+            break
+        ind.minus_vol(left)
+        ind.minus_price(left)
+    deq.append(entity)
+    ind.add_price(entity)
+    ind.add_vol(entity)
 
 
 if __name__ == '__main__':
