@@ -18,7 +18,6 @@ deque_min = deque()
 deque_10s = deque()
 deque_3s = deque()
 deque_3m = deque()
-latest_price = 0
 ind_1min = Indicator(60)
 ind_10s = Indicator(10)
 ind_3s = Indicator(3)
@@ -305,6 +304,7 @@ async def subscribe_without_login(url, channels):
 
 
 def process(res, timestamp):
+    global write_lines
     for i in res:
         if i == 'data':
             trade_item = res[i][0]
@@ -333,14 +333,17 @@ def process(res, timestamp):
             holding_status = 'spot_less: %d' % less
 
             price_info = deal_entity.type + u' now_price: %.4f, 3s_price: %.4f, 10s_price: %.4f, 1m_price: %.4f, ' \
-                                            u'3min_price: %.4f' \
-                         % (latest_price, avg_3s_price, avg_10s_price, avg_min_price, avg_3m_price)
+                                            u'3min_price: %.4f' % (latest_price, avg_3s_price, avg_10s_price,
+                                                                   avg_min_price, avg_3m_price)
+            print("price info: " + price_info)
             vol_info = u'cur_vol: %.3f, 3s vol: %.3f, 10s vol: %.3f, 1min vol: %.3f, ask_vol: %.3f, bid_vol: %.3f, ' \
                        u'3s_ask_vol: %.3f, 3s_bid_vol: %.3f, 3min vol: %.3f, 3min_ask_vol: %.3f, 3min_bid_vol: %.3f' \
                        % (deal_entity.amount, ind_3s.vol, ind_10s.vol, ind_1min.vol, ind_1min.ask_vol, ind_1min.bid_vol,
                           ind_3s.ask_vol, ind_3s.bid_vol, ind_3m.vol, ind_3m.ask_vol, ind_3m.bid_vol)
+            print("vol info: " + vol_info)
             rate_info = u'10s_rate: %.2f%%, 1min_rate: %.2f%%, 3min_rate: %.2f%%' \
                         % (price_10s_change, price_1m_change, price_3m_change)
+            print("rate info: " + rate_info)
             write_info = holding_status + u', ' + price_info + u', ' + vol_info + u', ' + rate_info + u', ' + timestamp + '\r\n'
             write_lines.append(write_info)
             if len(write_lines) >= 100:
@@ -348,7 +351,7 @@ def process(res, timestamp):
                     f.writelines(write_lines)
                     write_lines = []
 
-            print(holding_status + '\r\n' + price_info + '\r\n' + vol_info + '\r\n' + rate_info + u', ' + timestamp)
+            print(holding_status + '\r\n' + price_info + '\r\n' + vol_info + '\r\n' + rate_info + u', ' + str(timestamp))
 
 
 # subscribe channels need login
