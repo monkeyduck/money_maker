@@ -23,6 +23,7 @@ ind_1min = Indicator(60)
 ind_10s = Indicator(10)
 ind_3s = Indicator(3)
 ind_3m = Indicator(180)
+write_lines = []
 
 
 def get_timestamp():
