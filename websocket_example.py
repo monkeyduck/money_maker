@@ -9,6 +9,7 @@ import zlib
 import datetime
 import time
 import codecs
+import traceback
 from entity import Coin, Indicator, DealEntity
 from utils import handle_deque, cal_rate
 from collections import deque
@@ -231,6 +232,7 @@ async def subscribe_without_login(url, channels):
                     try:
                         process(res, timestamp)
                     except Exception as e:
+                        print(traceback.format_exc())
                         print(e)
 
                     # if 'event' in res:
