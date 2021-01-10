@@ -228,7 +228,10 @@ async def subscribe_without_login(url, channels):
                     print("time:" + timestamp)
 
                     res = eval(res)
-                    process(res, timestamp)
+                    try:
+                        process(res, timestamp)
+                    except Exception as e:
+                        print(e)
 
                     # if 'event' in res:
                     #     continue
