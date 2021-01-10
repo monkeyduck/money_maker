@@ -312,15 +312,15 @@ def process(res, timestamp):
     global write_lines
     for i in res:
         if i == 'data':
+            ts = time.time()
             trade_item = res[i][0]
             latest_price = float(trade_item['price'])
             trade_id = str(trade_item['trade_id'])
             size = float(trade_item['size'])
             side = str(trade_item['side'])
-            deal_entity = DealEntity(trade_id, latest_price, size, timestamp, side)
+            deal_entity = DealEntity(trade_id, latest_price, size, ts, side)
             print('detail:' + deal_entity.detail())
 
-            ts = time.time()
             handle_deque(deque_3s, deal_entity, ts, ind_3s)
             handle_deque(deque_10s, deal_entity, ts, ind_10s)
             handle_deque(deque_min, deal_entity, ts, ind_1min)
